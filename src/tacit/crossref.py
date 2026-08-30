@@ -47,15 +47,25 @@ resolve individually by DOI; they are simply not reachable through the search
 index. Deposit dates suggest why — IEEE re-deposited this era in 2022 and it was
 indexed in 2025.
 
-**Coverage boundary, measured** (ICRA+IROS records recovered per year):
+**Coverage boundary, measured** (ICRA+IROS papers recovered per year, after the
+venue exclusions below were tightened):
 
-    1995      74        2008   1,360        2018   2,114
-    2002      38        2015   1,911        2022   2,336
+    1995      74        2008   1,360        2018   1,968
+    2002      38        2010   1,873        2022   2,161
+    2006   1,048        2015   1,911        2024   3,476
 
-So Crossref is effectively complete from ~2008 and effectively empty before it.
-That bounds any Crossref-only study to the modern era — which costs H5a/H5b their
-forty-year series, though H5d (the technique-age lifecycle design) survives. See
-docs/08-phase0-findings.md.
+So Crossref is usable from ~2007 and effectively empty before it. Two further
+edges matter as much as the paper counts:
+
+  references    ~99% of covered papers carry them. Layer A' is in good shape
+                wherever Layer A exists.
+  affiliations  a cliff at 2022 — 7-46 papers/year before, 98% after. T4 and H3
+                need affiliation histories and cannot be built from Crossref
+                outside that window; T1/T2 use co-authorship and survive.
+
+This bounds a Crossref-only study to the modern era, which costs H5a/H5b their
+forty-year series, though H5d (the technique-age lifecycle design) survives.
+See docs/08-phase0-findings.md.
 """
 from __future__ import annotations
 

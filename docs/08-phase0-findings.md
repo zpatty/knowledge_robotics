@@ -248,6 +248,26 @@ what Crossref can still support.
 Nothing in the *design* is invalidated. The channels, indicators, hypotheses and
 validation plan are untouched. What changed is where Layers A and A′ come from.
 
+### Standing options (PI, 2026-08-30)
+
+Two levers are available and should be assumed available in any future decision
+here, rather than re-litigated:
+
+1. **Paying for OpenAlex is acceptable**, within reason and not open-ended. Note
+   the exposure is bounded by construction — OpenAlex sells *prepaid credits*, not
+   a subscription: when the balance is spent requests 403 rather than billing on.
+   A full-corpus pull is ~$0.33. Cost is therefore never a reason to avoid an
+   OpenAlex route; only coverage (F3) is.
+2. **IEEE cooperation is probably obtainable** through the PI's own networking,
+   at the cost of some lead time. This changes the calculus on F1 and on the TDM
+   licence: routes that depend on IEEE goodwill are worth *planning for* rather
+   than designing around, provided nothing on the critical path blocks while the
+   ask is in flight.
+
+The practical consequence for sequencing: build what is reachable without either
+lever (the Crossref window), and put the IEEE ask in flight in parallel, since it
+is the only thing that recovers 1984–2006 and the abstract layer.
+
 ### Open decisions
 
 1. **Activate the IEEE developer account.** Everything IEEE-specific waits on it, and it

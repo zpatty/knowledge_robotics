@@ -15,8 +15,13 @@ It is detected through six channels of "negative space" traces (repair, transfer
 failure, substitution, underdetermination, epistemic base), each with computable
 indicators (`R1`–`R4`, `T1`–`T4`, `F1`–`F4`, `S1`–`S4`, `U1`–`U3`, `B1`–`B4`).
 
-**Status: planning, plus harvest tooling that has never been run against a live API.**
-No data has been collected.
+**Status: Phase 0 done, and it went badly for the plan's source architecture.**
+The design (channels, indicators, hypotheses, validation) is untouched; where Layers
+A/A′ come from is not. **Read `docs/08-phase0-findings.md` before touching anything
+corpus-related** — it supersedes `03` §3.3. The one-line version: IEEE is 403ing
+regardless of key, OpenAlex has <10% of the venue linkage and is now metered, and
+Crossref carries a usable corpus from ~2007 with ~99% reference edges. A Crossref
+harvest of 2006–2025 is the working corpus.
 
 ## Branch topology — read this before assuming what is in the tree
 
@@ -63,6 +68,7 @@ Read in this order; every doc cross-references the others by ID.
 | `docs/05-validation-and-threats.md` | V0–V6, threats T-A–T-J, and explicit stopping conditions. |
 | `docs/06-roadmap.md` | Phases 0–5, the 6-week fast path, open decisions. |
 | `docs/07-harvest-operations.md` | Operational notes for `src/tacit/` and `scripts/`. |
+| `docs/08-phase0-findings.md` | **What the live APIs actually returned.** Supersedes `03` §3.3. Read before any harvest work. |
 | `docs/appendix-deferred.md` | The expert survey and the model-in-the-loop probe, with re-entry conditions. |
 
 ## Two hard scope constraints, set by the PI
@@ -84,16 +90,30 @@ reflex, so check any proposed change against them.
    deltas, phase relationships — and **no claim of the form "robotics is X% tacit"**
    may appear. Collective tacit knowledge is out of scope.
 
-## API budget discipline — the code's central concern
+## Where the corpus actually comes from
 
-The IEEE Xplore key allows **200 calls/day**. One wasted call is 0.5% of a day; one
-buggy loop is the whole day. The roles are therefore inverted from the obvious design:
+The plan's OpenAlex-bulk / IEEE-authority split (`03` §3.3) did not survive contact
+with the live APIs. Current state, per `docs/08`:
 
-- **OpenAlex is the bulk workhorse** (~650 calls for the full corpus at `per-page=100`).
-- **IEEE is authority and gap-filler only** — venue-year completeness counts, abstract
-  gap-filling, controlled index terms, supplementary flags.
+| Source | State | Role now |
+|---|---|---|
+| **Crossref** | free, unmetered, no key | **The working corpus.** ~2007–present, ~99% reference edges. Affiliations only from 2022. |
+| **OpenAlex** | metered (1,000 credits/day free); supplied key is rejected, keyless polite pool works | Under 10% venue linkage — IROS resolves to 3 years. Not usable until F3 in `08` is settled. |
+| **IEEE Xplore** | `ERR_403_DEVELOPER_INACTIVE` for *any* key, including none | Blocked. Only route to 1984–2006 and to abstracts. |
 
-Three rules are enforced in code, not by discipline:
+`src/tacit/crossref.py` documents three silent Crossref traps — read it before
+writing a query. The worst: **cursor paging discards relevance ordering**, so paging
+a fuzzy query walks arbitrary records and silently returns almost nothing.
+
+## API budget discipline
+
+Still the code's central concern, even though the binding source changed.
+IEEE allows **200 calls/day** — one wasted call is 0.5% of a day. OpenAlex meters
+**credits, not calls**, scaling with page size (`credits_for(per_page)`); budgeting by
+call count under-states a paged harvest ~5×. Crossref is unmetered and its guard is
+only a runaway catch.
+
+Four rules are enforced in code, not by discipline:
 
 - `src/tacit/cache.py` — content-addressed on the request URL with credentials
   scrubbed, so a rotated key does not invalidate the cache. Cache-first is the budget
@@ -104,34 +124,44 @@ Three rules are enforced in code, not by discipline:
 - Every client takes `dry_run=True`. **Always run `--dry-run` first** and read the
   printed URLs.
 
+- A long `Retry-After` raises `QuotaExhausted` rather than sleeping. OpenAlex answers
+  a spent quota with `Retry-After: 79803` — 22 hours — and the retry loop used to
+  sleep on it.
+
 `IEEEXplore(reserve=N)` holds back N calls so an automated harvest cannot eat the
 allowance an interactive probe needs.
 
 ### Order of operations
 
 ```bash
-cp .env.example .env                              # IEEE_API_KEY, OPENALEX_API_KEY, OPENALEX_MAILTO
-python3 scripts/probe_ieee.py --dry-run
-python3 scripts/probe_ieee.py                     # ~8 calls; determines the whole harvest design
-python3 scripts/harvest_openalex.py --stage sources   # inspect the source records BY HAND
-python3 scripts/harvest_openalex.py --stage works --sources S... S...
-python3 scripts/coverage_report.py                # the Phase 0 gate
+# The working path today — Crossref, no key, no quota:
+python3 scripts/survey_crossref.py --years 2006-2025    # coverage by year
+python3 scripts/harvest_crossref.py --years 2006-2025   # the corpus; resumable
+
+# Blocked until the IEEE account is sorted (docs/08 F1):
+python3 scripts/probe_ieee.py --dry-run && python3 scripts/probe_ieee.py
 ```
 
-**Source selection is deliberately manual.** OpenAlex source records for long-running
-conference series are split, renamed, and incomplete. Picking one programmatically by
-best name match silently truncates the corpus and the failure is invisible. Print the
-candidates, look at them, record the chosen IDs in version control.
+`harvest_crossref.py` is resumable — it reads existing DOIs from `--out` and skips
+them, so an interrupted run continues.
+
+**Any OpenAlex source selection stays manual.** Source records for long-running
+conference series are split, renamed, and incomplete; picking one programmatically by
+best name match silently truncates the corpus, invisibly. That is exactly how F3 was
+found.
 
 ## Environment
 
-Outbound HTTPS in a default cloud session reaches package registries and GitHub only,
-so OpenAlex and IEEE are refused at CONNECT (`HTTP 000`, not a 401 — the request never
-leaves the VM). `docs/07-harvest-operations.md` has the fix: set the environment's
-network access to **Custom**, allowlist `api.openalex.org`, `ieeexploreapi.ieee.org`,
-`export.arxiv.org`, `arxiv.org`, `api.crossref.org`, `api.semanticscholar.org`,
-`api.unpaywall.org`, `api.ror.org`, **keep the package-manager defaults checked**, put
-the keys in the environment-variables box, and start a new session.
+This environment is **already configured** — keys are in the environment and
+`api.openalex.org`, `ieeexploreapi.ieee.org`, `api.crossref.org`, `export.arxiv.org`,
+`api.semanticscholar.org` and `api.ror.org` are reachable. If a fresh environment is
+not, `docs/07` has the setup: network access **Custom**, those domains allowlisted,
+**package-manager defaults kept checked**, keys in the environment-variables box, then
+start a new session.
+
+**`dblp.org` is NOT allowlisted** and its CONNECT is refused. Worth adding: DBLP is
+the cleanest free source of per-venue-year DOI lists, and a DOI list is precisely what
+would unlock the pre-2007 corpus that Crossref holds but cannot enumerate (`08` F4).
 
 Do **not** use the environment's *API credentials* feature for these keys — it injects
 HTTP headers, but both APIs authenticate by query string, so the credential attaches,
@@ -140,6 +170,19 @@ is ignored, and produces 401s that look like a bad key.
 A cloud VM is the wrong home for the harvest regardless: the container is reclaimed
 after the session, and a 65k-work corpus should not be committed. Prefer a persistent
 machine for harvesting and cloud sessions for analysis and code.
+
+## Two standing options, set by the PI
+
+Do not re-litigate these; assume they are available when weighing a route.
+
+- **Paying for OpenAlex is acceptable** (bounded, not open-ended — it sells
+  prepaid credits, so a spent balance 403s rather than billing on). A full-corpus
+  pull is ~$0.33. Cost is never the reason to reject an OpenAlex route; coverage
+  is (`08` F3).
+- **IEEE cooperation is probably obtainable** via the PI's networking, given lead
+  time. Routes needing IEEE goodwill — API activation, the TDM licence — are worth
+  planning for rather than designing around, as long as nothing on the critical
+  path blocks waiting for them.
 
 ## What is unverified
 
