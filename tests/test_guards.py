@@ -252,3 +252,65 @@ class TestQuotaExhaustedNotSleptThrough(unittest.TestCase):
 
         with self.assertRaises(H.QuotaExhausted):
             client.get("https://api", {"per-page": 1})
+
+
+class TestCrossrefVenueClassifier(unittest.TestCase):
+    """Container titles are the only venue handle Crossref gives us, and they are
+    inconsistent across four decades. Strings below are real, taken from live
+    records during the Phase 0 probe."""
+
+    def setUp(self):
+        from tacit.crossref import classify_container
+        self.c = classify_container
+
+    def test_accepts_real_icra_containers(self):
+        for s in [
+            "2015 IEEE International Conference on Robotics and Automation (ICRA)",
+            "2022 International Conference on Robotics and Automation (ICRA)",
+            "Proceedings 2002 IEEE International Conference on Robotics and Automation (Cat. No.02CH37292)",
+            "1993 IEEE International Conference on Robotics and Automation",
+        ]:
+            self.assertEqual(self.c(s), "ICRA", s)
+
+    def test_accepts_real_iros_containers(self):
+        for s in [
+            "IEEE/RSJ International Conference on Intelligent Robots and Systems",
+            "Proceedings 1995 IEEE/RSJ International Conference on Intelligent Robots and Systems",
+            "2021 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)",
+        ]:
+            self.assertEqual(self.c(s), "IROS", s)
+
+    def test_rejects_confusable_venues(self):
+        """These leaked in before the exclusions were tightened — ~7% of 2018."""
+        for s in [
+            "IEEE Robotics and Automation Letters",
+            "IEEE Transactions on Robotics and Automation",
+            "International Journal of Robotics and Automation",
+            "2018 International Conference on Robotics and Automation Engineering",   # ICRAE
+            "2018 International Conference on Robotics and Automation Sciences",      # ICRAS
+            "2018 International Conference on Mechatronics, Robotics and Automation", # ICMRA
+            "2022 17th International Conference on Control, Automation, Robotics and Vision",
+            "2020 5th International Conference on Automation, Control and Robotics Engineering",
+            "17th International Symposium on Automation and Robotics in Construction",
+        ]:
+            self.assertIsNone(self.c(s), s)
+
+    def test_handles_missing_container(self):
+        self.assertIsNone(self.c(None))
+        self.assertIsNone(self.c(""))
+
+
+class TestCrossrefYear(unittest.TestCase):
+    def test_prefers_published_over_deposit_date(self):
+        """A 2002 paper deposited in 2003 must date to 2002, not 2003."""
+        from tacit.crossref import work_year
+        self.assertEqual(work_year({
+            "published": {"date-parts": [[2002]]},
+            "created": {"date-parts": [[2003, 6, 25]]},
+        }), 2002)
+
+    def test_falls_back_through_date_fields(self):
+        from tacit.crossref import work_year
+        self.assertEqual(work_year({"issued": {"date-parts": [[1995]]}}), 1995)
+        self.assertIsNone(work_year({}))
+        self.assertIsNone(work_year({"published": {"date-parts": [[]]}}))
