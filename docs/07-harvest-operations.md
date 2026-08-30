@@ -55,6 +55,42 @@ invisible — you get a plausible-looking corpus that is missing 1991–1996. Pr
 candidates, look at them, record the chosen IDs in version control, and cross-check the
 per-year counts against the IEEE completeness audit.
 
+## Running this in a Claude Code cloud environment
+
+The default **Trusted** network level reaches package registries and GitHub only, so
+OpenAlex and IEEE are refused at CONNECT (`HTTP 000`, not a 401 — the request never
+leaves the VM). To fix, edit the environment from the selector at claude.ai/code (the
+cloud icon above the message box; there is no settings page for it), then:
+
+1. **Network access → Custom**, and in **Allowed domains**, one per line:
+   ```
+   api.openalex.org
+   ieeexploreapi.ieee.org
+   export.arxiv.org
+   arxiv.org
+   api.crossref.org
+   api.semanticscholar.org
+   api.unpaywall.org
+   api.ror.org
+   ```
+2. **Check "Also include default list of common package managers."** Unchecked, the list
+   above becomes the *only* reachable set and `pip install` breaks.
+3. Put the keys in the environment's **Environment variables** box in `.env` format
+   (`IEEE_API_KEY`, `OPENALEX_API_KEY`, `OPENALEX_MAILTO`). The repo's `.env` is
+   gitignored, so a fresh cloud session clones without it; `config.py` reads real
+   environment variables first, so this is the durable place for them.
+4. **Start a new session.** Running sessions do not re-read environment configuration.
+
+Do **not** use the environment's *API credentials* feature for these two keys. It injects
+HTTP headers, and both APIs authenticate by query string (`?apikey=` for IEEE,
+`?api_key=` for OpenAlex) — the credential would attach and be ignored, producing 401s
+that look like a bad key. GitHub needs no allowlist entry; it uses a separate proxy.
+
+**A cloud VM is the wrong home for the harvest anyway.** The container is reclaimed after
+the session, and a 65k-work corpus dump should not be committed to the repo. Prefer
+running the harvest on a persistent machine and using cloud sessions for analysis and
+code.
+
 ## What is unverified
 
 None of this has been run against the live APIs — the development environment's network
