@@ -27,6 +27,7 @@ the gap between a method section and an executable specification.
 | [`docs/05-validation-and-threats.md`](docs/05-validation-and-threats.md) | How we know the measures measure anything; what could make the whole thing wrong. |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Phases, decision points, a 6-week minimum viable study, deliverables. |
 | [`docs/08-phase0-findings.md`](docs/08-phase0-findings.md) | **Read before harvesting.** What the live APIs actually returned, and which premises above it invalidates. |
+| [`docs/09-scale-invariance.md`](docs/09-scale-invariance.md) | Why no indicator may rest on a raw count, the measured deflators, and an audit of the battery. |
 
 ## Status
 

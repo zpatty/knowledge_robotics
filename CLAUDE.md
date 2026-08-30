@@ -72,9 +72,10 @@ Read in this order; every doc cross-references the others by ID.
 | `docs/06-roadmap.md` | Phases 0–5, the 6-week fast path, open decisions. |
 | `docs/07-harvest-operations.md` | Operational notes for `src/tacit/` and `scripts/`. |
 | `docs/08-phase0-findings.md` | **What the live APIs actually returned.** Supersedes `03` §3.3. Read before any harvest work. |
+| `docs/09-scale-invariance.md` | The no-raw-counts constraint, the measured deflators, and an audit of all ~20 indicators against it. |
 | `docs/appendix-deferred.md` | The expert survey and the model-in-the-loop probe, with re-entry conditions. |
 
-## Two hard scope constraints, set by the PI
+## Three hard scope constraints, set by the PI
 
 These are binding design decisions, not preferences. Both are easy to violate by
 reflex, so check any proposed change against them.
@@ -92,6 +93,14 @@ reflex, so check any proposed change against them.
    analysis or writing: all claims are comparative — rankings, gradients, event-study
    deltas, phase relationships — and **no claim of the form "robotics is X% tacit"**
    may appear. Collective tacit knowledge is out of scope.
+3. **No indicator may rest on a raw count.** (`09-scale-invariance.md`.) Nominal vs
+   real: the corpus inflated ×3.4 in papers, ×2.3 in references per paper and ×1.5 in
+   authors per paper over 2006–2025, so any raw count measures corpus growth. **Every
+   indicator ships with its denominator, stated in the code.** Four in the battery
+   currently break the rule (`T2`, `F1`, `S3`, `S4`) and five need a denominator
+   named (`R4`, `T1`, `T4`, `U2`, `U3`) — see the audit in `09` §3. Co-authorship
+   edges must be fractionally weighted (1/(n−1)); unweighted, one 279-author paper
+   doubles the 2024 graph.
 
 ## Where the corpus actually comes from
 
