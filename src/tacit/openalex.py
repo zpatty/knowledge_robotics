@@ -1,15 +1,22 @@
-"""OpenAlex client — the bulk workhorse.
+"""OpenAlex client.
 
-Role split (see docs/03-corpus.md): OpenAlex carries the bulk harvest because its
-budget is generous, and the scarce IEEE budget is reserved for what only IEEE has.
+Role split (see docs/03-corpus.md): OpenAlex was to carry the bulk harvest because
+its budget was generous, with the scarce IEEE budget reserved for what only IEEE
+has. Both halves of that premise failed on first contact with the live APIs — see
+docs/08-phase0-findings.md. OpenAlex is now metered (1,000 credits/day free) and
+its ICRA/IROS venue linkage covers under 10% of the expected corpus. Treat this
+client as provisional until F3 in that document is settled.
 """
 from __future__ import annotations
 
+import logging
 from typing import Iterator
 
 from .budget import DailyBudget
-from .config import require
-from .http import ApiClient
+from .config import optional, require
+from .http import ApiClient, ApiError
+
+log = logging.getLogger(__name__)
 
 BASE = "https://api.openalex.org"
 
@@ -23,21 +30,66 @@ WORK_FIELDS = ",".join([
 ])
 
 
+# OpenAlex is metered in *credits*, not calls, and the free tier is far smaller than
+# this project's first draft assumed. Verified against the live API on 2026-08-30:
+#
+#   x-ratelimit-limit:      1000 credits/day   (x-ratelimit-limit-usd: 0.10)
+#   per-page=1              1 credit    ($0.0001)
+#   per-page=200           10 credits   ($0.0010)
+#
+# so credits ≈ ceil(per_page / 20), minimum 1. A ~65k-work harvest at per-page=100
+# is ~650 calls but ~3,250 credits — over three days of the free allowance, not the
+# "comfortable afternoon" docs/03 §3.3 assumed. Budgeting by call count would have
+# under-counted the true spend by 5x and blown the quota mid-harvest.
+FREE_DAILY_CREDITS = 1000
+CREDITS_PER_RESULTS = 20
+
+
+def credits_for(per_page: int) -> int:
+    """Credits a single call costs, as a function of page size."""
+    return max(1, -(-int(per_page) // CREDITS_PER_RESULTS))
+
+
 class OpenAlex:
-    def __init__(self, *, dry_run: bool = False, daily_limit: int = 100_000):
+    def __init__(self, *, dry_run: bool = False, daily_limit: int = FREE_DAILY_CREDITS):
         self.client = ApiClient(
             "openalex",
-            DailyBudget("openalex", daily_limit),
+            DailyBudget("openalex_credits", daily_limit),
             min_interval=0.05,  # well under the 100 req/s ceiling
             dry_run=dry_run,
         )
-        self.key = require("OPENALEX_API_KEY")
+        # The key is optional. OpenAlex's "polite pool" — authenticated only by a
+        # mailto address — is free, needs no registration, and is rated far above
+        # what this project spends (a full corpus pull is ~650 calls). A key raises
+        # the ceiling further, but nothing here depends on having one.
+        #
+        # An *invalid* key is worse than none: OpenAlex answers it with a hard 401
+        # rather than degrading to the polite pool. So a rejected key falls back,
+        # loudly, once — otherwise a key that expires mid-harvest kills a run that
+        # would have completed keyless.
+        self.key = optional("OPENALEX_API_KEY")
         self.mailto = require("OPENALEX_MAILTO")
+        self._key_rejected = False
 
     def _get(self, path: str, params: dict):
         params = dict(params)
         params.setdefault("mailto", self.mailto)
-        return self.client.get(f"{BASE}/{path}", params, secret_params={"api_key": self.key})
+        url = f"{BASE}/{path}"
+        cost = credits_for(params.get("per-page", 25))
+        secret = {"api_key": self.key} if (self.key and not self._key_rejected) else None
+        try:
+            return self.client.get(url, params, secret_params=secret, cost=cost)
+        except ApiError as exc:
+            if secret is None or "401" not in str(exc):
+                raise
+            self._key_rejected = True
+            log.warning(
+                "OPENALEX_API_KEY was rejected (%s). Continuing on the keyless polite "
+                "pool, which is sufficient for this project's call volume. Fix or "
+                "unset the key to silence this.",
+                str(exc).split(":")[-1].strip()[:80],
+            )
+            return self.client.get(url, params, secret_params=None, cost=cost)
 
     def find_sources(self, query: str) -> list[dict]:
         """Locate venue source records by name. Conference series are often split

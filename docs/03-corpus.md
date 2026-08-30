@@ -40,6 +40,13 @@ text at all. This matters enormously for project risk. Sequence the work accordi
 
 ## 3.3 What the IEEE API does and does not fix
 
+> **Superseded in part.** Both premises in this section failed on contact with the live
+> APIs on 2026-08-30: the IEEE account is inactive (no key works), and OpenAlex is now
+> metered *and* holds under 10% of the expected ICRA/IROS venue linkage — three years of
+> IROS, not thirty-five. Read [`08-phase0-findings.md`](08-phase0-findings.md) before
+> acting on anything below. The role split described here is retained as the design
+> rationale, not as a current description of the sources.
+
 ### The rate limit reverses the intended roles
 
 The granted IEEE key allows **200 calls per day** (10/sec). That single number
@@ -194,12 +201,17 @@ a public technique registry with dated codification events and indicator values 
 a codification artifact**, and one that lowers access costs to exactly the kind of knowledge
 Mokyr says matters. Build it to be used.
 
-## 3.7 Immediate blocker in this environment
+## 3.7 Environment network policy
 
-This session's network policy denies outbound HTTPS to everything but package registries, so
-the OpenAlex/arXiv feasibility probes that would firm up the counts in §3.1 could not be
-run. Before Phase 0 work begins, either allowlist `ieeexploreapi.ieee.org`, `api.openalex.org`,
-`api.crossref.org`, `export.arxiv.org`, `api.semanticscholar.org`, `api.github.com`, and
-`api.ror.org` in the
-environment's network configuration, or run corpus assembly outside this environment. Until
-then, treat every corpus count in these documents as an unverified estimate.
+**Resolved.** The environment is now configured with outbound access to
+`api.openalex.org`, `ieeexploreapi.ieee.org`, `api.crossref.org`, `export.arxiv.org`,
+`api.semanticscholar.org` and `api.ror.org`, and the probes in
+[`08`](08-phase0-findings.md) were run against the live APIs from here.
+
+One gap remains: **`dblp.org` is not allowlisted** and its CONNECT is refused. DBLP is
+the cleanest authority for conference membership — complete ICRA/IROS proceedings,
+free, no key, no metering — and given what §3.3 above turned out to be worth, it is now
+the most valuable domain to add.
+
+Corpus counts in §3.1 remain unverified estimates: the completeness audit that would
+confirm them needs the IEEE account activated.

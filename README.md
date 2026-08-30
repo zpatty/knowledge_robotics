@@ -26,8 +26,19 @@ the gap between a method section and an executable specification.
 | [`docs/04-study-design.md`](docs/04-study-design.md) | Unit of analysis, data model, hypotheses, identification strategies, the headline analyses. |
 | [`docs/05-validation-and-threats.md`](docs/05-validation-and-threats.md) | How we know the measures measure anything; what could make the whole thing wrong. |
 | [`docs/06-roadmap.md`](docs/06-roadmap.md) | Phases, decision points, a 6-week minimum viable study, deliverables. |
+| [`docs/08-phase0-findings.md`](docs/08-phase0-findings.md) | **Read before harvesting.** What the live APIs actually returned, and which premises above it invalidates. |
 
 ## Status
 
-Planning. No data collected, no code written. Open decisions are listed at the end of
-[`docs/06-roadmap.md`](docs/06-roadmap.md).
+Planning, with harvest tooling written and first contact made with the live APIs.
+No corpus collected yet.
+
+**The corpus premise did not survive that first contact.** The IEEE developer account is
+inactive, and OpenAlex — cast as the bulk workhorse — turns out to be metered and to hold
+under 10% of the expected ICRA/IROS venue linkage. The study design is unaffected; the
+question is where Layers A/A′ come from. See
+[`docs/08-phase0-findings.md`](docs/08-phase0-findings.md), which supersedes the source
+architecture in §3.3 of the corpus document.
+
+Open decisions are at the end of [`docs/06-roadmap.md`](docs/06-roadmap.md) and in §
+*Open decisions* of the findings document.

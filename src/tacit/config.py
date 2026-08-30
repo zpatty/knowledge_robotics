@@ -22,6 +22,12 @@ def load_env(path: Path | None = None) -> None:
         os.environ.setdefault(key.strip(), value.strip())
 
 
+def optional(name: str) -> str | None:
+    """Read a credential that the caller can do without. Empty string counts as unset."""
+    load_env()
+    return os.environ.get(name) or None
+
+
 def require(name: str) -> str:
     load_env()
     value = os.environ.get(name)

@@ -18,9 +18,20 @@ from .config import CACHE
 _SECRET_PARAM = re.compile(r"([?&])(apikey|api_key)=[^&]*", re.IGNORECASE)
 
 
+def scrub_url(url: str) -> str:
+    """Replace credential query parameters with a placeholder.
+
+    Both APIs authenticate by query string, so the key is part of every request
+    URL — and therefore of every exception message, log line, and traceback that
+    quotes one. Anything that might surface a URL to a human or a log file must
+    put it through here first. (This repository has leaked a key once already;
+    see `docs/07-harvest-operations.md`.)
+    """
+    return _SECRET_PARAM.sub(r"\1\2=REDACTED", url)
+
+
 def cache_key(url: str) -> str:
-    scrubbed = _SECRET_PARAM.sub(r"\1\2=REDACTED", url)
-    return hashlib.sha256(scrubbed.encode()).hexdigest()
+    return hashlib.sha256(scrub_url(url).encode()).hexdigest()
 
 
 class ResponseCache:

@@ -13,3 +13,7 @@ __pycache__/
 *.pyc
 .venv/
 venv/
+
+# Phase 0 probe artifacts (regenerable; raw API responses)
+data/
+cache/
