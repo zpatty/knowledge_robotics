@@ -333,6 +333,68 @@ masquerades as a knowledge trend.
   missing, so 2006 should be treated as IROS-only or dropped.
 
 
+## F6 — The pre-2006 era, reached without IEEE or DBLP
+
+F4 established that pre-2007 records are *in* Crossref and resolve by DOI while
+being unreachable through its search index. That makes a DOI list the whole
+problem — and the corpus supplies one about itself.
+
+IEEE conference DOIs carry venue and year in the suffix
+(`10.1109/ROBOT.1998.677043`), so the 2006–2025 papers' own reference edges yield
+**6,210 distinct pre-2006 ICRA/IROS DOIs** by regex, with no API calls. Fetching
+them returned **5,859 papers spanning 1984–2005 continuously**, with 83,898
+reference edges and 8,324 distinct authors.
+
+| | 1984 | 1990 | 1995 | 2000 | 2005 |
+|---|---|---|---|---|---|
+| ICRA | 15 | 93 | 139 | 298 | 483 |
+| IROS | — | 25 | 85 | 107 | 375 |
+
+**It is a cited subset, never a census, and that is load-bearing rather than a
+caveat.** Only papers someone later cited are reachable, so it over-represents
+influential and enduring work, and the bias worsens going back: roughly 15 of
+1984's ~200 papers. Any corpus-level or per-year-rate claim computed on it is
+wrong — the rising counts above are mostly a citation-decay curve, not the
+conference growing. It is defensible for the transfer channel, where lineage can
+only be traced through cited work anyway, and for comparisons within the same
+selection. Records carry `selection: "cited-subset"` so the distinction reaches
+the panel.
+
+Known holes to respect: IROS is absent for 1997 and near-absent for 2002 (4
+papers), which is a deposit or DOI-stem artifact rather than a citation pattern
+and should be checked before any IROS series crosses those years.
+
+### A second bug the era exposed
+
+Crossref's pre-2006 IEEE deposits mostly carry **no usable date**: 4,898 of 5,859
+records had no parseable `published`, `issued` or `published-print`, and the
+first harvest wrote them all as year 0. The DOI suffix is the only date those
+records carry — and it is the *conference* year rather than a deposit date, which
+is the one the study wants. `doi_year()` now backs up `work_year()`, and a real
+date still wins where one exists.
+
+## F7 — What the other sources give, measured
+
+Probed after the IEEE key stayed pending. All are reachable and free.
+
+| Source | Gives | Measured |
+|---|---|---|
+| **arXiv** | **full text** (LaTeX source) | 2010 0% · 2015 8% · 2019 17% · 2022 58% · 2025 58% (n=12/yr) |
+| **Semantic Scholar** | abstracts, any DOI incl. 1990 | abstracts 2024 ~99% · 2015 ~14% · pre-2007 ~0% |
+| **Unpaywall** | OA locations | reachable, unprobed |
+| ~~ISBN enumeration~~ | — | dead: old IEEE Crossref records carry no ISBN |
+| ~~OpenAlex~~ | — | dead for venue linkage (F3) |
+
+**arXiv is the largest untapped source and the most dangerous.** It supplies real
+full text — the whole repair and underdetermination side of `02` — for roughly
+half of recent ICRA/IROS. But 0% → 58% across the window is exactly the
+openness-selection problem in [`03`](03-corpus.md) §3.4, steeper than that section
+assumed. Cross-sectional and event-study designs on the open subset are fine; a
+corpus-wide time trend from any full-text indicator is not, and would be wrong in
+the flattering direction.
+
+Semantic Scholar's abstract curve has the same shape and the same consequence.
+
 ### Standing options (PI, 2026-08-30)
 
 Two levers are available and should be assumed available in any future decision

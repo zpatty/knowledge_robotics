@@ -70,7 +70,7 @@ def main() -> int:
         return 0
 
     api = Crossref()
-    written = failed = wrong_venue = 0
+    written = failed = wrong_venue = undated = 0
     t0 = time.time()
     with out.open("a") as fh:
         for i, doi in enumerate(todo, 1):
@@ -88,6 +88,8 @@ def main() -> int:
                 wrong_venue += 1
                 continue
             record = normalise(work, venue, work_year(work) or 0)
+            if not record["year"]:
+                undated += 1
             record["selection"] = "cited-subset"
             fh.write(json.dumps(record) + "\n")
             written += 1
@@ -100,7 +102,7 @@ def main() -> int:
 
     print(f"\nWrote {written:,} papers to {out}")
     print(f"  failed {failed:,} · off-venue {wrong_venue:,} · "
-          f"{time.time() - t0:.0f}s")
+          f"undated {undated:,} · {time.time() - t0:.0f}s")
     print(f"  cache hits={api.client.hits} misses={api.client.misses}")
     return 0
 

@@ -570,3 +570,26 @@ class TestVenueClassifierPrecision(unittest.TestCase):
                   "2008 IEEE/RSJ International Conference on Intelligent Robots and Systems",
                   "IEEE/RSJ International Workshop on Intelligent Robots and Systems"]:
             self.assertEqual(self.c(s), "IROS", s)
+
+
+class TestDoiYear(unittest.TestCase):
+    """Crossref's pre-2006 IEEE deposits usually carry no usable date: 4,898 of
+    5,859 records in the cited-subset harvest had none. The DOI suffix does."""
+
+    def test_extracts_conference_year_from_ieee_doi(self):
+        from tacit.crossref import doi_year
+        self.assertEqual(doi_year("10.1109/robot.1998.677043"), 1998)
+        self.assertEqual(doi_year("10.1109/ROBOT.1990.126006"), 1990)
+        self.assertEqual(doi_year("10.1109/IROS.2011.6048"), 2011)
+
+    def test_ignores_non_ieee_and_malformed(self):
+        from tacit.crossref import doi_year
+        self.assertIsNone(doi_year("10.1177/0278364913495721"))
+        self.assertIsNone(doi_year(""))
+        self.assertIsNone(doi_year(None))
+
+    def test_work_year_prefers_a_real_date_over_the_doi(self):
+        from tacit.crossref import work_year
+        self.assertEqual(work_year({"DOI": "10.1109/robot.1990.126006"}), 1990)
+        self.assertEqual(work_year({"DOI": "10.1109/robot.1990.126006",
+                                    "published": {"date-parts": [[1991]]}}), 1991)

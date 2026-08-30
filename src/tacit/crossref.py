@@ -144,6 +144,22 @@ def classify_container(container_title: str | None) -> str | None:
     return None
 
 
+_DOI_YEAR = re.compile(r"^10\.1109/[a-z]*[.\d]*?\.(19[89]\d|20[0-2]\d)\.", re.I)
+
+
+def doi_year(doi: str | None) -> int | None:
+    """Conference year from an IEEE DOI suffix: 10.1109/ROBOT.1998.677043 -> 1998.
+
+    Needed because Crossref's pre-2006 IEEE deposits frequently carry no usable
+    date at all — measured on the cited-subset harvest, 4,898 of 5,859 records
+    had no parseable `published`, `issued` or `published-print`. The DOI is the
+    only date those records carry, and it is the *conference* year rather than a
+    deposit date, which is the one we want anyway.
+    """
+    m = _DOI_YEAR.match(doi or "")
+    return int(m.group(1)) if m else None
+
+
 def work_year(work: dict) -> int | None:
     """Publication year, preferring the conference date over the deposit date.
 
@@ -155,7 +171,8 @@ def work_year(work: dict) -> int | None:
         parts = (work.get(key) or {}).get("date-parts") or []
         if parts and parts[0] and parts[0][0]:
             return int(parts[0][0])
-    return None
+    # Last resort before giving up: the DOI itself.
+    return doi_year(work.get("DOI"))
 
 
 class Crossref:
