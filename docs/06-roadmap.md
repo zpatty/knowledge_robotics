@@ -5,8 +5,13 @@ phase depends on an access route that may not arrive.
 
 **Current scope constraints** (set by the PI, and reflected throughout these documents):
 no expert survey; no LLM-based text assessment. Both are recorded with their re-entry
-conditions in [`appendix-deferred.md`](appendix-deferred.md). IEEE API access is available;
-full-text/TDM rights are a separate matter and not yet in hand.
+conditions in [`appendix-deferred.md`](appendix-deferred.md).
+
+**Access status.** OpenAlex key granted (generous budget — the bulk workhorse). IEEE
+Xplore key granted but **200 calls/day**, which makes it an authority and gap-filler
+rather than a harvest source ([`03`](03-corpus.md) §3.3); its status also reads *waiting*,
+so confirm it is active before planning around it. Full-text/TDM rights are a **separate
+agreement** and not in hand.
 
 ## Phase 0 — Feasibility (weeks 1–4)
 
@@ -17,23 +22,32 @@ Purpose: kill the project early if it deserves to be killed.
    anything else.
 2. **Fix the environment's network policy** ([`03`](03-corpus.md) §3.7) or move corpus
    assembly elsewhere.
-3. **Harvest Layer A from the IEEE API.** Verify actual ICRA/IROS paper counts and replace
-   every estimate in these documents. Then the critical measurement: **the
-   abstract-coverage-by-year curve**, plus whether affiliations and supplementary-material
-   flags are returned for the early years. The "measure a complete corpus" argument in
-   [`03`](03-corpus.md) §3.3 stands or falls on this, and everything downstream is scoped
-   by it.
-4. **Assemble Layer A′** — the reference graph, from OpenAlex/Crossref. Check merge quality
-   against the IEEE record.
-5. **Measure arXiv/OA full-text overlap by year.** Determines how much of Phase 2 is
+3. **Probe the IEEE API — ~8 calls, before anything else.** `scripts/probe_ieee.py`.
+   Confirms the key is active (its granted status reads *waiting*), establishes the real
+   `max_records` ceiling and paging depth, and reports which fields are returned per era.
+   These eight calls determine the harvest design; do not skip to bulk.
+4. **Bulk-harvest from OpenAlex** — `scripts/harvest_openalex.py --stage sources` first,
+   and *inspect the source records by hand* before running `--stage works`. Conference
+   series are frequently split across several OpenAlex source records, and choosing one
+   blindly silently truncates the corpus.
+5. **Run the completeness audit.** ~80 IEEE calls: one per venue-year, both venues, forty
+   years. Compare `total_records` against the OpenAlex counts. This is the highest-value
+   use of the IEEE budget and it turns "we think we have the corpus" into a per-year
+   statement of what is missing.
+6. **Compute the coverage table** — `scripts/coverage_report.py`. **The
+   abstract-coverage-by-year curve is the critical measurement**: the "measure a complete
+   corpus" argument in [`03`](03-corpus.md) §3.3 stands or falls on it, and everything
+   downstream is scoped by it. The script also prints the exact IEEE call cost of closing
+   the abstract gap, so that spend is a decision rather than a surprise.
+7. **Measure arXiv/OA full-text overlap by year.** Determines how much of Phase 2 is
    possible at all.
-6. **Check the H5 sample constraint.** How many techniques will plausibly have ≥ 15 years
+8. **Check the H5 sample constraint.** How many techniques will plausibly have ≥ 15 years
    of usable history? If the answer is small, H5a/H5b are underpowered from the start and
    H5d (the lifecycle design) becomes the primary test — better to know this in week 3 than
    in month 8.
-7. **Hand-annotate 300 sentences** for the R1 classes against a written guideline; measure
+9. **Hand-annotate 300 sentences** for the R1 classes against a written guideline; measure
    inter-annotator agreement.
-8. **Pre-register the D1 subfield ordering** (V2) before computing anything.
+10. **Pre-register the D1 subfield ordering** (V2) before computing anything.
 
 **Gate:** abstract coverage adequate back to at least ~1995; OA full-text overlap ≥ ~25% in
 the modern era; R1 annotation κ ≥ 0.6. Failure on the first reshapes the study rather than
@@ -112,7 +126,7 @@ Two papers and the dataset release per [`04`](04-study-design.md) §6.
 
 ## Fast path
 
-If only six weeks exist: **Phase 0 items 3–6, then Phase 1.** Yields the transfer-channel
+If only six weeks exist: **Phase 0 items 3–8, then Phase 1.** Yields the transfer-channel
 result on 20 techniques plus a first look at the H5 lifecycle signature. A real contribution
 on its own, and it de-risks everything else.
 

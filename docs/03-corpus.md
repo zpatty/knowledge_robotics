@@ -28,7 +28,7 @@ range in one place, which is precisely the axis along which tacitness should var
 
 | Layer | Content | Sources | Coverage expected |
 |---|---|---|---|
-| **A — Venue + abstract** | Authoritative ICRA/IROS membership, titles, authors, affiliations, abstracts, IEEE index terms, supplementary-material flags | **IEEE Xplore API** (primary), OpenAlex, DBLP | **complete, and unbiased** |
+| **A — Venue + abstract** | ICRA/IROS membership, titles, authors, affiliations, abstracts, index terms, supplementary flags | **OpenAlex** (bulk), **IEEE Xplore API** (authority + gap-fill — see §3.3), DBLP | target: complete and unbiased |
 | **A′ — Citation graph** | References, citation contexts | OpenAlex (primary — has the reference edges), Crossref, Semantic Scholar | ~complete |
 | **B — Full text** | Sections, method text, tables, acknowledgments, captions | arXiv, S2ORC, OA copies, IEEE TDM licence | **partial — the binding constraint** |
 | **C — Artifacts** | Code repos, datasets, videos, benchmarks, platforms | GitHub API, dataset DOIs, IEEE supplementary index | partial, biased recent |
@@ -40,49 +40,80 @@ text at all. This matters enormously for project risk. Sequence the work accordi
 
 ## 3.3 What the IEEE API does and does not fix
 
-The IEEE Xplore API changes the risk picture substantially, but not uniformly, and it is
-worth being precise about where it helps because it is easy to over-read.
+### The rate limit reverses the intended roles
 
-**What it fixes — and this is a real fix:**
+The granted IEEE key allows **200 calls per day** (10/sec). That single number
+overturns the source architecture sketched above, and it is worth being explicit about
+the arithmetic:
 
-- **Authoritative venue membership.** No more fuzzy venue-name matching to decide what is
-  and is not an ICRA paper. OpenAlex's source records for long-running conference series
-  are messy (renamed proceedings, split records, missing years); an authoritative
-  publisher-side list removes a whole class of silent corpus errors.
-- **Complete, unbiased abstracts for the entire corpus.** This is the important one. The
-  openness-selection problem below is a problem about *full text*. If abstracts are
-  complete for all ~60k papers back to 1984, then every abstract-computable indicator —
-  B3, the reduced-form variants of R1 and U2, subfield assignment — runs **corpus-wide with
-  no selection bias at all**. That converts the mitigation strategy from "reweight a biased
-  sample" to "measure a complete one," which is a different and much better position.
-- **IEEE controlled index terms**, which give a publisher-maintained subject vocabulary
-  spanning the full period — a far better basis for subfield assignment than clustering
-  alone, and one that is stable across years in a way embeddings are not.
-- **Supplementary-material / multimedia flags.** *If* these are exposed in the API (verify —
-  see below), we get video-attachment presence for the entire corpus across four decades,
-  unbiased. Given that video is the field's main non-propositional carrier (S1), a complete
-  forty-year series on it would be a first-class descriptive result on its own, and one
-  nobody has published.
+- At a per-call ceiling of ~200 records (*assumed, must be verified — see the probe*),
+  the theoretical maximum is 40,000 records/day. A ~65k-paper corpus is therefore a
+  **two-day pull in the perfect case**, and realistically three to five once probing,
+  retries, and per-venue-year partitioning are accounted for.
+- More to the point: **one wasted call is 0.5% of a day's allowance, and one buggy loop
+  is the whole day.** Any design where IEEE is the bulk workhorse is a design where a
+  single mistake costs a week.
 
-**What it does not fix:**
+So the roles invert from the first draft:
+
+| | Role | Why |
+|---|---|---|
+| **OpenAlex** | **Bulk workhorse** | Generous budget with the free key (10× keyless), cursor paging past 10k, references included, and abstracts via `abstract_inverted_index`. A full ~65k-work pull is ~650 calls at `per-page=100` — a comfortable afternoon, not a multi-day operation. |
+| **IEEE Xplore** | **Authority and gap-filler** | Spend the 200/day only on what nothing else has. |
+
+**What the IEEE budget should actually be spent on**, in priority order:
+
+1. **Completeness audit.** One call per venue-year returns `total_records`. Eighty calls
+   covers both venues across forty years and gives an authoritative count to check
+   OpenAlex against. This is the highest-value use of the budget by a wide margin — it
+   converts "we think we have the corpus" into "we know what we are missing, by year."
+2. **Abstract gap-filling.** Harvest abstracts from OpenAlex first, measure the gap,
+   then spend IEEE calls only on the years where OpenAlex is thin. `coverage_report.py`
+   computes the exact call cost of closing the gap before any of it is spent.
+3. **IEEE controlled index terms**, for the subfield layer.
+4. **Supplementary-material / multimedia flags** — *if* the API exposes them (unverified).
+
+### What it fixes
+
+- **Authoritative venue membership.** OpenAlex source records for long-running
+  conference series are messy — renamed proceedings, split records, per-year records,
+  missing years. Picking one source ID at random silently truncates the corpus, and an
+  IEEE venue-year count catches exactly that class of error.
+- **Complete, unbiased abstracts.** The openness-selection problem below is a problem
+  about *full text*. If abstracts are complete corpus-wide, every abstract-computable
+  indicator — B3, the reduced forms of R1 and U2, subfield assignment — runs
+  **corpus-wide with no selection bias at all**. That is a move from "reweight a biased
+  sample" to "measure a complete one." Whether we get there is now a *joint* OpenAlex +
+  IEEE question rather than an IEEE one.
+- **Controlled index terms** spanning the full period — better than clustering for
+  subfield assignment, and stable across years in a way embeddings are not.
+- **Supplementary-material flags**, if exposed: video-attachment presence for the whole
+  corpus across four decades, unbiased. Video is the field's main non-propositional
+  carrier (S1), and a complete forty-year series on it is a publishable descriptive
+  result on its own.
+
+### What it does not fix
 
 - **Full text.** The standard Xplore API returns metadata and abstracts, not article
-  full text; full text requires the separate TDM arrangement. So R1–R4, U1, U3, F2–F4 and
-  B1/B4 remain restricted to the open subset, and the openness-selection machinery in §3.4
-  still applies **to those indicators specifically**.
-- **The reference graph.** IEEE's API is not the best source for reference edges; OpenAlex
-  and Crossref remain primary for A′. Combine rather than substitute.
-- **Rate limits.** Historically the free tier has been tightly capped; institutional access
-  raises it. Budget for a slow, resumable, cached harvest rather than a single bulk pull.
+  full text — that is the separate TDM agreement, and **having an API key does not imply
+  having TDM rights**. R1–R4, U1, U3, F2–F4 and B1/B4 stay restricted to the open
+  subset, with the machinery in §3.4 applying to those indicators specifically.
+- **The reference graph.** OpenAlex and Crossref remain primary for Layer A′.
 
-**Verify before relying on any of this** (could not be checked from this environment — see
-§3.7): current API tiers and quotas; whether affiliations are returned for all years or
-only recent ones; whether supplementary-material flags are exposed; how far back abstract
-coverage actually reaches, since early-1980s conference records are frequently
-abstract-less even at the publisher. **The abstract-coverage-by-year curve is the single
-most important number to establish in week 1** — the entire "measure a complete corpus"
-argument above depends on it, and if abstracts thin out before 1995 then the pre-1995
-analysis is metadata-only and should be planned that way from the start.
+### Probe before harvest
+
+Field availability across four decades is unverified, and a 2023 record tells us nothing
+about a 1986 one. `scripts/probe_ieee.py` spends ~8 calls to establish: whether the key
+is active at all (the granted key's status reads *waiting*, which may mean not yet
+approved); the real `max_records` ceiling and whether deep `start_record` paging is
+permitted; and which fields — abstract, affiliations, index terms, multimedia — are
+actually returned per era. **Those eight calls determine the entire harvest design and
+are worth more than eight hundred calls of bulk data.** Run it with `--dry-run` first.
+
+**The abstract-coverage-by-year curve remains the single most important number to
+establish in week 1.** If coverage thins before ~1995, the pre-1995 analysis is
+metadata-only and should be planned that way from the start rather than discovered in
+month three.
 
 ## 3.4 Full-text access and the openness-selection problem
 
