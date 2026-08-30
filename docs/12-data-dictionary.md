@@ -96,10 +96,14 @@ prior authors of that technique, with no cohort split (`10` §2).
 | `n_null` | Null draws. `0` marks a cell recorded as too small to compute — kept in the file rather than dropped, so the skip is visible. |
 | `seconds` | Wall time. Diagnostic. |
 
-**The standing caution.** Cohort growth drives `ratio` toward 1 mechanically as an
-adopter population expands, so this column is **not** a tacitness ranking. The
-probe in `10` §2 shows the two techniques at chance were the two whose cohorts
-grew 19× and 8×. Model growth explicitly before comparing techniques.
+**The standing caution.** This column is **not** a tacitness ranking. Note the
+cohort-growth confound predicted in `10` §2 is measured at Spearman +0.081 over
+the 688 computed cells and is therefore negligible *in this rolling design* — the
+warning applied to the 2015-split probe, not to the panel. What remains open is
+whether growth matters within a single technique's trajectory, and, more
+importantly, that nothing yet connects this ratio to the construct: it measures
+network proximity, and calling that tacit transmission is an inference the data
+does not yet support.
 
 ## `data/corpus_baselines.json` — deflators
 

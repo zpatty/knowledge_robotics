@@ -216,6 +216,36 @@ produced a plausible, well-ordered, publication-shaped result that is probably a
 artifact of cohort growth. Scale invariance and continuity are necessary, not
 sufficient.
 
+### Follow-up: the confound largely does not survive the rolling design
+
+The section above predicted that cohort growth would drive the ratio toward 1 and
+warned that the cross-technique ordering was probably an artifact of it. The full
+panel now exists (688 computed technique-years, `data/indicator_lineage.csv`), and
+the prediction is **not** borne out in the design actually shipped:
+
+| | Spearman vs `ratio` |
+|---|---|
+| Cohort growth (`n_new / n_prior`) | **+0.081** |
+| Prior cohort size | **−0.084** |
+
+Both are negligible, and the growth correlation is *positive* — the opposite sign
+to the confound. Median ratio across growth quintiles runs 2.51, 2.32, 2.71, 2.65,
+3.22: no monotone dilution.
+
+The discrepancy is a property of the two designs, not a contradiction. The §2
+probe split each technique's authors once at 2015, which for reinforcement
+learning meant scoring 3,179 late authors against 167 early ones — a cohort so
+much larger than its seed set that dilution dominated. The panel measures each
+year against all prior years, so cohorts stay comparable in scale and the prior
+set grows with them. **Removing the arbitrary split appears to have removed most
+of the confound with it**, which was not the reason for removing it.
+
+Two cautions survive intact. This says nothing about whether the ratio measures
+tacit knowledge — it removes one specific artifact, not the construct-validity
+gap. And a rank correlation near zero across the pooled panel does not rule out
+growth mattering *within* a technique's own trajectory, which is a different
+question and still open (task: growth-matched null).
+
 ## 3. Our own violation, fixed
 
 `corpus_baselines.py` shipped with `--hyper-author-threshold 20`, counting "papers
