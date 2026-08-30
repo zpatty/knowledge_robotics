@@ -33,9 +33,11 @@ which is both continuous and scale-free — satisfying docs/09 and docs/10 in on
 statistic. A value of 1 means "no closer to the originators than chance given
 how well-connected these people are"; above 1 means genuine lineage proximity.
 
-Pure stdlib and dict-based. The graph is ~68k authors and ~293k edges; the local
-push algorithm keeps a full null sweep tractable without numpy. Phase 4's
-spectral and survival work will want numpy/scipy; nothing here does.
+Pure stdlib and dict-based. The graph is ~68k authors and ~293k edges. The
+measure is computed by one linear solve per adopter set (`absorption`), reused
+across the observed value and every null draw, which is both exact and cheaper
+than a PageRank per seed set. Phase 4's spectral and survival work will want
+numpy/scipy; nothing here does.
 """
 from __future__ import annotations
 
@@ -93,78 +95,65 @@ def build_coauthor_graph(
     return dict(graph)
 
 
-def personalised_pagerank(
+def absorption(
     graph: Graph,
-    seeds: Mapping[str, float] | Sequence[str],
+    targets: Sequence[str],
     *,
     alpha: float = 0.15,
-    epsilon: float = 1e-6,
-    max_pushes: int = 2_000_000,
+    tol: float = 1e-10,
+    max_iter: int = 400,
     degree: Mapping[str, float] | None = None,
 ) -> dict[str, float]:
-    """Approximate personalised PageRank by local push (Andersen-Chung-Lang).
+    """Solve x = 1_S + (1-alpha) P x, where P is the degree-normalised walk.
 
-    Power iteration touches all 68k authors every sweep and is far too slow in
-    pure Python for the hundreds of runs the null model needs. Push instead
-    propagates mass only where there is mass to propagate, so cost scales with
-    the neighbourhood actually reached — seconds rather than minutes — with a
-    provable error bound.
+    This is the whole measure, turned inside out. The quantity wanted is the
+    personalised-PageRank mass that a seed set T puts on an adopter set S:
 
-    **`epsilon` is a convergence tolerance that behaves as a distance cutoff when
-    too loose, so it must be verified rather than assumed.** It bounds the
-    residual per unit degree; work is bounded by 1/(epsilon*alpha). Measured on
-    one impedance-control cell the estimate is NOT stable across it:
+        pi_T . 1_S  =  alpha * mean over u in T of x(u)
 
-        epsilon=1e-6   ratio 2.48   15.7s
-        epsilon=1e-5   ratio 3.73    0.9s
-        epsilon=1e-4   ratio 0.00    0.1s
+    where x depends only on S. So **one solve serves the observed value and every
+    null draw**, because the nulls differ only in T. That is a 6x saving over
+    running a separate PageRank per seed set, and it is exact.
 
-    At 1e-4 the walk is truncated before reaching the adopters at all, which is
-    precisely the gated measurement docs/10 rules out, smuggled in through a
-    performance knob. Do not loosen it for speed without re-checking convergence
-    on the cells being computed. 1e-6 is the loosest value tested that still
-    agrees with a tighter one; `check_convergence` re-tests that on new data.
+    It also deletes a parameter. The previous implementation was an approximate
+    local push with an `epsilon` tolerance and a `max_pushes` cap, and it was
+    wrong: at tight tolerances it hit the cap and returned partial results, so
+    values moved non-monotonically (0.000124 -> 0.000372 -> 0.000026 across
+    1e-7, 1e-8, 1e-9) and small-cohort cells disagreed with a tighter run by up
+    to 100%. A truncated walk is a distance cutoff, which docs/10 forbids, so
+    there was no tolerance at which that implementation was both fast and
+    honest.
 
-    Pass `degree` to reuse a precomputed degree map. Recomputing it per call
-    dominates the runtime when sweeping nulls, since it touches every edge.
-
-    Returns proximity mass by author; authors never reached have no entry, which
-    is a proximity of zero rather than a separate class.
+    Power iteration here has one convergence criterion, no cap, and no knob that
+    silently changes the answer: it runs until the update is below `tol`.
+    Convergence is geometric at rate (1-alpha), so the default reaches ~1e-10 in
+    about 140 sweeps.
     """
-    if isinstance(seeds, Mapping):
-        seed_weights = dict(seeds)
-    else:
-        seed_weights = {s: 1.0 for s in seeds}
-    seed_weights = {s: w for s, w in seed_weights.items() if s in graph}
-    total = sum(seed_weights.values())
-    if not total:
-        return {}
-
     if degree is None:
         degree = degrees(graph)
-    estimate: dict[str, float] = {}
-    residual: dict[str, float] = {s: w / total for s, w in seed_weights.items()}
-    queue = list(residual)
-    queued = set(queue)
+    target_set = {t for t in targets if t in graph}
+    if not target_set:
+        return {}
 
-    pushes = 0
-    while queue and pushes < max_pushes:
-        node = queue.pop()
-        queued.discard(node)
-        r = residual.get(node, 0.0)
-        deg = degree.get(node, 0.0)
-        if deg <= 0.0 or r < epsilon * deg:
-            continue
-        pushes += 1
-        estimate[node] = estimate.get(node, 0.0) + alpha * r
-        residual[node] = 0.0
-        spread = (1.0 - alpha) * r
-        for nbr, w in graph[node].items():
-            residual[nbr] = residual.get(nbr, 0.0) + spread * (w / deg)
-            if nbr not in queued and residual[nbr] >= epsilon * degree.get(nbr, 1.0):
-                queue.append(nbr)
-                queued.add(nbr)
-    return estimate
+    decay = 1.0 - alpha
+    x: dict[str, float] = {t: 1.0 for t in target_set}
+    for _ in range(max_iter):
+        nxt: dict[str, float] = {t: 1.0 for t in target_set}
+        for node, value in x.items():
+            if value == 0.0:
+                continue
+            share = decay * value
+            for nbr, w in graph[node].items():
+                d = degree.get(nbr, 0.0)
+                if d > 0.0:
+                    nxt[nbr] = nxt.get(nbr, 0.0) + share * (w / d)
+        delta = max(
+            abs(nxt.get(k, 0.0) - x.get(k, 0.0)) for k in set(nxt) | set(x)
+        )
+        x = nxt
+        if delta < tol:
+            break
+    return x
 
 
 def proximity(
@@ -173,25 +162,25 @@ def proximity(
     adopters: Sequence[str],
     *,
     alpha: float = 0.15,
-    epsilon: float = 1e-6,
     degree: Mapping[str, float] | None = None,
+    solution: Mapping[str, float] | None = None,
 ) -> float:
-    """Continuous lineage proximity of an adopting group to the originators.
+    """Personalised-PageRank mass the originators place on the adopters.
 
-    The adopters' share of the personalised-PageRank mass. Continuous in [0, 1];
+    Continuous in [0, 1]; every path length contributes under geometric decay and
     no adopter is ever classified as connected or not.
+
+    Pass `solution` (from `absorption` on the adopter set) to reuse the solve
+    across seed sets — that is what makes the null sweep affordable.
     """
-    rank = personalised_pagerank(
-        graph, originators, alpha=alpha, degree=degree, epsilon=epsilon
-    )
-    if not rank:
+    if solution is None:
+        solution = absorption(graph, adopters, alpha=alpha, degree=degree)
+    if not solution:
         return 0.0
-    origin = set(originators)
-    # Exclude the originators themselves: the question is how close *others* are.
-    mass = sum(v for k, v in rank.items() if k not in origin)
-    if mass <= 0.0:
+    seeds = [u for u in originators if u in graph]
+    if not seeds:
         return 0.0
-    return sum(rank.get(a, 0.0) for a in adopters if a not in origin) / mass
+    return alpha * sum(solution.get(u, 0.0) for u in seeds) / len(seeds)
 
 
 def _degree_matched_seeds(
@@ -227,7 +216,6 @@ def proximity_vs_null(
     alpha: float = 0.15,
     n_null: int = 50,
     seed: int = 0,
-    epsilon: float = 1e-6,
     degree: Mapping[str, float] | None = None,
     degree_buckets: Mapping[int, Sequence[str]] | None = None,
 ) -> dict[str, float]:
@@ -243,8 +231,10 @@ def proximity_vs_null(
     a tight null and on a wide one are different findings.
     """
     deg_w = degree if degree is not None else degrees(graph)
+    # One solve, reused by the observed value and every null draw.
+    solution = absorption(graph, adopters, alpha=alpha, degree=deg_w)
     observed = proximity(
-        graph, originators, adopters, alpha=alpha, degree=deg_w, epsilon=epsilon
+        graph, originators, adopters, alpha=alpha, degree=deg_w, solution=solution
     )
 
     degree_of = {node: len(nbrs) for node, nbrs in graph.items()}
@@ -264,7 +254,7 @@ def proximity_vs_null(
         if null_seeds:
             draws.append(proximity(
                 graph, null_seeds, adopters,
-                alpha=alpha, degree=deg_w, epsilon=epsilon,
+                alpha=alpha, degree=deg_w, solution=solution,
             ))
 
     if not draws:
@@ -304,20 +294,19 @@ def sweep_alpha(
 
 def check_convergence(
     graph: Graph,
-    originators: Sequence[str],
-    adopters: Sequence[str],
+    targets: Sequence[str],
     *,
     alpha: float = 0.15,
-    epsilons: Sequence[float] = (1e-5, 1e-6, 1e-7),
+    tols: Sequence[float] = (1e-8, 1e-10, 1e-12),
     **kwargs,
 ) -> dict[float, float]:
-    """Raw proximity across tolerances - run before trusting a new sweep.
+    """Total solved mass across tolerances - a convergence check with teeth.
 
-    epsilon is a performance knob that silently becomes a distance cutoff when too
-    loose (see personalised_pagerank). If these values disagree materially, the
-    looser ones are truncating the walk rather than approximating it.
+    Kept after the push implementation was replaced, because "it converged" is a
+    claim that should be re-tested on new data rather than assumed. Values here
+    should agree to several digits; if they do not, `max_iter` is binding.
     """
     return {
-        eps: proximity(graph, originators, adopters, alpha=alpha, epsilon=eps, **kwargs)
-        for eps in epsilons
+        tol: sum(absorption(graph, targets, alpha=alpha, tol=tol, **kwargs).values())
+        for tol in tols
     }

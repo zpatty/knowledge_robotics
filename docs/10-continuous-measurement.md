@@ -83,29 +83,41 @@ protocol is: **report the whole `alpha` curve, never a single value.**
 `sweep_alpha()` exists to make that the path of least resistance. A finding that
 holds at α = 0.05 and dies at α = 0.30 is a finding about α.
 
-### `epsilon` **is** a threshold, and that was worth finding out
+### `epsilon` was a threshold, so it was removed rather than tuned
 
-An earlier draft of this document asserted that `epsilon` — the push algorithm's
-residual tolerance — was mere numerical accuracy. Measurement says otherwise. On
-one impedance-control cell:
+An early draft asserted that `epsilon` — the local-push algorithm's residual
+tolerance — was mere numerical accuracy. It was not. Checked across ten real
+technique-years spanning the cohort-size range, the push estimate disagreed with
+a tighter run by **25% to 100%** on small-cohort cells, and moved
+*non-monotonically* as the tolerance tightened:
 
-| `epsilon` | ratio | time |
-|---|---|---|
-| 1e-6 | 2.48 | 15.7 s |
-| 1e-5 | 3.73 | 0.9 s |
-| 1e-4 | 0.00 | 0.1 s |
+```
+soft_actuator 2007   1e-7: 0.000124   1e-8: 0.000372   1e-9: 0.000026
+```
 
-A loose tolerance stops the walk before it reaches distant adopters, which is
-exactly a distance cutoff — reintroduced through a performance knob rather than
-declared as a modelling choice. It is the same bug as "distance ≤ 2", wearing an
-engineer's clothes instead of a methodologist's, and it would have been invisible
-in any results table.
+Two faults compounded. A loose tolerance stops the walk before it reaches distant
+adopters, which is exactly a distance cutoff reintroduced through a performance
+knob. And a `max_pushes` cap meant tight tolerances silently returned *partial*
+results instead of running longer — which is why the numbers oscillate rather
+than converging. There was no tolerance at which that implementation was both
+fast and honest.
 
-Two consequences. `epsilon` is fixed at 1e-6, the loosest value that still agrees
-with a tighter one, and `check_convergence()` re-tests that whenever the graph or
-the cohorts change. And, more generally: **a speed optimisation can silently
-become a measurement decision**, so any parameter bounding how far a computation
-reaches needs the same scrutiny as one bounding what counts.
+**The fix was to delete the parameter, not to tune it.** The quantity wanted is
+the PageRank mass a seed set `T` places on an adopter set `S`, and that can be
+written
+
+    pi_T . 1_S  =  alpha * mean over u in T of x(u),   where  x = 1_S + (1-alpha) P x
+
+`x` depends only on `S`. So one exact linear solve per cell serves the observed
+value *and every null draw* — 6× cheaper than a PageRank per seed set, with no
+tolerance knob and no cap, just power iteration to a convergence criterion.
+Solved mass now agrees to seven significant figures across tolerances
+(870.911106 / 870.911388 / 870.911393 at 1e-8 / 1e-10 / 1e-12).
+
+The general lesson is the one worth keeping: **a speed optimisation can silently
+become a measurement decision.** Any parameter bounding how far a computation
+reaches deserves the same scrutiny as one bounding what counts — and the better
+answer is often a formulation that has no such parameter.
 
 ### Null normalisation makes it scale-free
 

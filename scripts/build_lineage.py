@@ -14,9 +14,8 @@ Reported as observed proximity over its degree-matched null (docs/10 section 2),
 which is continuous and scale-free at once. `alpha` is swept rather than fixed.
 
 Resumable: rows are appended and flushed as they are computed, and an existing
-output is read first so an interrupted run continues. This matters because a full
-sweep is hours — the walk needs epsilon=1e-6 to converge (docs/10), and that is
-~15s per null draw.
+output is read first so an interrupted run continues. A full sweep is hours: the
+cost is one exact linear solve per cell, with the null draws reusing it.
 """
 from __future__ import annotations
 
@@ -47,7 +46,6 @@ def main() -> int:
     ap.add_argument("--out", default="data/indicator_lineage.csv")
     ap.add_argument("--alphas", default="0.05,0.15,0.30")
     ap.add_argument("--n-null", type=int, default=5)
-    ap.add_argument("--epsilon", type=float, default=1e-6)
     ap.add_argument("--min-authors", type=int, default=3,
                     help="compute budget only: cells with fewer new or prior "
                          "authors are recorded as skipped, never silently dropped")
@@ -109,7 +107,7 @@ def main() -> int:
                     t0 = time.time()
                     res = proximity_vs_null(
                         graph, prior_authors, new_authors,
-                        alpha=alpha, n_null=args.n_null, epsilon=args.epsilon,
+                        alpha=alpha, n_null=args.n_null,
                         degree=deg_w, degree_buckets=buckets,
                     )
                     writer.writerow({

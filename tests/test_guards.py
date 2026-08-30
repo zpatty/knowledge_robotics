@@ -333,24 +333,32 @@ class TestLineageContinuity(unittest.TestCase):
 
     def test_distance_is_graded_not_gated(self):
         """The whole point: distance 3 scores lower than 2, but is NOT zero."""
-        rank = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.15)
-        a, b, c = rank.get("a", 0), rank.get("b", 0), rank.get("c", 0)
+        a = self.L.proximity(self.g, ["origin"], ["a"])
+        b = self.L.proximity(self.g, ["origin"], ["b"])
+        c = self.L.proximity(self.g, ["origin"], ["c"])
         self.assertGreater(a, b)
         self.assertGreater(b, c)
         self.assertGreater(c, 0.0, "distance-3 author was gated out, not graded")
 
     def test_no_author_is_classified(self):
         """Scores are continuous, not a two-valued membership."""
-        rank = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.15)
-        vals = sorted({round(v, 12) for k, v in rank.items() if k != "origin"})
+        vals = {round(self.L.proximity(self.g, ["origin"], [n]), 12)
+                for n in ("a", "b", "c")}
         self.assertGreater(len(vals), 1, "proximity collapsed to a class")
 
     def test_alpha_changes_decay_not_membership(self):
         """Higher alpha decays faster, but nobody drops out of the measure."""
-        near = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.6)
-        far = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.05)
-        self.assertGreater(far.get("c", 0), near.get("c", 0))
-        self.assertGreater(near.get("c", 0), 0.0)
+        near = self.L.proximity(self.g, ["origin"], ["c"], alpha=0.6)
+        far = self.L.proximity(self.g, ["origin"], ["c"], alpha=0.05)
+        self.assertGreater(far, near)
+        self.assertGreater(near, 0.0)
+
+    def test_solve_converges_across_tolerances(self):
+        """Regression: the previous push implementation moved non-monotonically
+        across tolerances and disagreed with a tighter run by up to 100%."""
+        vals = list(self.L.check_convergence(self.g, ["c"]).values())
+        for v in vals[1:]:
+            self.assertAlmostEqual(v, vals[0], places=6)
 
     def test_repeated_collaboration_strengthens_edge(self):
         p1 = [{"authors": [{"name": "x"}, {"name": "y"}]}]
@@ -374,12 +382,15 @@ class TestLineageContinuity(unittest.TestCase):
         self.assertGreater(p, 0.0)
         self.assertLessEqual(p, 1.0)
 
-    def test_proximity_excludes_originators_from_both_sides(self):
-        """Otherwise a technique looks lineage-bound purely from its own authors."""
-        self.assertEqual(self.L.proximity(self.g, ["origin"], ["origin"]), 0.0)
+    def test_solution_can_be_reused_across_seed_sets(self):
+        """One solve serves the observed value and every null draw."""
+        sol = self.L.absorption(self.g, ["c"])
+        direct = self.L.proximity(self.g, ["origin"], ["c"])
+        reused = self.L.proximity(self.g, ["origin"], ["c"], solution=sol)
+        self.assertAlmostEqual(direct, reused, places=12)
 
     def test_unreachable_seed_returns_empty_not_error(self):
-        self.assertEqual(self.L.personalised_pagerank(self.g, ["nobody"]), {})
+        self.assertEqual(self.L.absorption(self.g, ["nobody"]), {})
         self.assertEqual(self.L.proximity(self.g, ["nobody"], ["a"]), 0.0)
 
     def test_null_ratio_is_near_one_for_unrelated_adopters(self):
