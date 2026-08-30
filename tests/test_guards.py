@@ -413,3 +413,149 @@ class TestCorpusBaselineQuantiles(unittest.TestCase):
         self.assertEqual(cb.quantile(vals, 0.99), 99)
         self.assertEqual(cb.quantile([], 0.5), 0.0)
         self.assertEqual(cb.quantile([7], 0.9), 7)
+
+
+class TestTechniqueRegistry(unittest.TestCase):
+    def setUp(self):
+        from tacit.registry import load_registry, match_paper, normalise_title
+        self.reg = load_registry()
+        self.match = match_paper
+        self.norm = normalise_title
+
+    def test_registry_ids_unique(self):
+        ids = [t.id for t in self.reg]
+        self.assertEqual(len(ids), len(set(ids)))
+
+    def test_short_aliases_match_words_not_substrings(self):
+        """' mpc ' must not fire on 'compensation'; padding is what makes that work."""
+        hit = self.match({"title": "An MPC approach to legged locomotion"}, self.reg)
+        self.assertIn("mpc", hit)
+        miss = self.match({"title": "Thermal compression and compensation"}, self.reg)
+        self.assertNotIn("mpc", miss)
+
+    def test_title_at_either_end_still_matches(self):
+        self.assertIn("mpc", self.match({"title": "MPC"}, self.reg))
+
+    def test_multiple_techniques_are_all_kept(self):
+        """Techniques co-occur; assigning a paper to one arbitrarily is a cut point."""
+        hits = self.match(
+            {"title": "Reinforcement learning for impedance control of a soft robot"},
+            self.reg,
+        )
+        self.assertIn("reinforcement_learning", hits)
+        self.assertIn("impedance_control", hits)
+        self.assertIn("soft_actuator", hits)
+
+    def test_missing_or_empty_title_is_safe(self):
+        self.assertEqual(self.match({"title": None}, self.reg), [])
+        self.assertEqual(self.match({}, self.reg), [])
+
+    def test_case_and_whitespace_insensitive(self):
+        a = self.match({"title": "VISUAL   SERVOING of a manipulator"}, self.reg)
+        self.assertIn("visual_servoing", a)
+
+
+class TestReferenceClassifier(unittest.TestCase):
+    def setUp(self):
+        from tacit.refs import ReferenceClassifier
+        self.c = ReferenceClassifier()
+
+    def test_ieee_stem_strips_instance_ids(self):
+        """ICRA, ICRA40945 and ICRA48506 are one venue, not three."""
+        for doi in ("10.1109/ICRA.2015.7139278",
+                    "10.1109/ICRA40945.2020.9196733",
+                    "10.1109/icra48506.2021.9561715"):
+            self.assertEqual(self.c.ieee_stem(doi), "ICRA")
+
+    def test_non_ieee_doi_has_no_stem(self):
+        self.assertIsNone(self.c.ieee_stem("10.1177/0278364913495721"))
+
+    def test_robotics_and_external_by_doi(self):
+        self.assertEqual(self.c.classify({"doi": "10.1109/IROS.2011.6048"})[0], "robotics")
+        self.assertEqual(self.c.classify({"doi": "10.1109/CVPR.2016.90"}),
+                         ("external", "computer_vision_ml"))
+        self.assertEqual(self.c.classify({"doi": "10.1109/TAC.2009.12345"}),
+                         ("external", "control_theory"))
+
+    def test_rss_and_ijrr_are_robotics(self):
+        self.assertEqual(self.c.classify({"doi": "10.15607/RSS.2018.XIV.001"})[0], "robotics")
+        self.assertEqual(self.c.classify({"doi": "10.1177/0278364913495721"})[0], "robotics")
+
+    def test_unknown_is_not_defaulted_to_external(self):
+        """Defaulting would inflate B2 reach where metadata is thinnest."""
+        self.assertEqual(self.c.classify({"doi": "10.1016/j.example.2019.01.001"}),
+                         ("unknown", None))
+        self.assertEqual(self.c.classify({}), ("unknown", None))
+
+    def test_venue_text_used_only_as_fallback(self):
+        self.assertEqual(
+            self.c.classify({"venue": "Proc IEEE Int Conf Robotics Automation"})[0],
+            "robotics")
+
+    def test_robotics_venue_wins_over_general_science_substring(self):
+        """'Science' is a substring of many venue names; robotics is checked first."""
+        self.assertEqual(
+            self.c.classify({"venue": "Robotics: Science and Systems"})[0], "robotics")
+
+    def test_summarise_reports_denominator_with_the_ratio(self):
+        from tacit.refs import summarise
+        refs = [{"doi": "10.1109/IROS.2011.1", "year": "2005"},
+                {"doi": "10.1109/CVPR.2016.1", "year": "2014"},
+                {"doi": "10.1016/unknown", "year": "2010"}]
+        out = summarise(refs, 2016, self.c)
+        self.assertAlmostEqual(out["reach"], 0.5)
+        self.assertAlmostEqual(out["classified_share"], 2 / 3)
+        self.assertEqual(out["n_unknown"], 1)
+        self.assertEqual(out["age_mean"], (11 + 2 + 6) / 3)
+
+    def test_summarise_reach_is_none_when_nothing_classified(self):
+        from tacit.refs import summarise
+        out = summarise([{"doi": "10.1016/x"}], 2020, self.c)
+        self.assertIsNone(out["reach"])
+        self.assertEqual(out["classified_share"], 0.0)
+
+    def test_implausible_reference_ages_are_dropped(self):
+        from tacit.refs import summarise
+        out = summarise([{"doi": "10.1109/IROS.2011.1", "year": "2099"}], 2016, self.c)
+        self.assertEqual(out["n_aged"], 0)
+
+
+class TestVenueClassifierPrecision(unittest.TestCase):
+    """Regression: a loose 'robotics and automation' match admitted 483 papers
+    (2.5% of ICRA) from five other conferences. All strings are real containers
+    from the 2006-2025 harvest."""
+
+    def setUp(self):
+        from tacit.crossref import classify_container
+        self.c = classify_container
+
+    def test_genuine_icra_containers_kept(self):
+        for s in [
+            "2024 IEEE International Conference on Robotics and Automation (ICRA)",
+            "2011 IEEE International Conference on Robotics and Automation",
+            "2019 International Conference on Robotics and Automation (ICRA)",
+            "Proceedings 2006 IEEE International Conference on Robotics and Automation, 2006. ICRA 2006.",
+        ]:
+            self.assertEqual(self.c(s), "ICRA", s)
+
+    def test_confusable_conferences_rejected(self):
+        for s in [
+            "2023 International Conference on Robotics and Automation in Industry (ICRAI)",
+            "2016 International Conference on Robotics and Automation for Humanitarian Applications (RAHA)",
+            "2018 IEEE 2nd Colombian Conference on Robotics and Automation (CCRA)",
+            "2025 International Conference on Intelligent Manufacturing, Robotics and Automation (IMRA)",
+            "2024 IEEE International Conference on Advanced Information, Mechanical Engineering, Robotics and Automation (AIMERA)",
+        ]:
+            self.assertIsNone(self.c(s), s)
+
+    def test_serials_rejected(self):
+        for s in ["IEEE Robotics and Automation Letters",
+                  "IEEE Transactions on Robotics and Automation",
+                  "IEEE Robotics & Automation Magazine"]:
+            self.assertIsNone(self.c(s), s)
+
+    def test_iros_containers_kept_including_early_workshop_form(self):
+        for s in ["2025 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)",
+                  "2008 IEEE/RSJ International Conference on Intelligent Robots and Systems",
+                  "IEEE/RSJ International Workshop on Intelligent Robots and Systems"]:
+            self.assertEqual(self.c(s), "IROS", s)

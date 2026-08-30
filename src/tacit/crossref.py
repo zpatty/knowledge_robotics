@@ -89,29 +89,45 @@ IEEE_MEMBER_ID = 263
 # budget guard is where this project keeps that kind of promise.
 RUNAWAY_GUARD = 100_000
 
-# Container-title patterns. Deliberately loose on decoration (year prefixes,
-# "Proceedings of", ordinals, trailing acronyms) and strict on the distinctive
-# phrase, because IEEE's container strings are inconsistent across four decades:
-#   "IEEE/RSJ International Conference on Intelligent Robots and Systems"
-#   "Proceedings 1995 IEEE/RSJ International Conference on Intelligent Robots …"
-#   "1993 IEEE International Conference on Robotics and Automation"
+# Container-title patterns. Require the venue's canonical phrase *contiguously*,
+# which is what separates ICRA from the surprisingly large family of conferences
+# whose names contain the same words in a different arrangement. Measured on the
+# 2006-2025 harvest, a loose "robotics and automation" match admitted 483 papers
+# (2.5% of ICRA) from five other venues:
+#
+#   ICRAI   International Conference on Robotics and Automation *in Industry*
+#   RAHA    ... Robotics and Automation *for Humanitarian Applications*
+#   ICRAE   ... Robotics and Automation *Engineering*
+#   CCRA    IEEE *Colombian Conference* on Robotics and Automation
+#   IMRA    ... Intelligent Manufacturing, Robotics and Automation
+#   AIMERA  ... Advanced Information, Mechanical Engineering, Robotics and Automation
+#
+# The last three break the phrase and are excluded by requiring it contiguously.
+# The first three extend it, so the rule is that **nothing but punctuation, a
+# parenthesised acronym, or end-of-string may follow** — stated positively rather
+# than as a blocklist of qualifier words, since the blocklist approach missed
+# ICRAE ("... and Automation Engineering") on the first attempt and would keep
+# missing whichever qualifier appears next.
+# Genuine containers vary only in year prefix, the "IEEE"/"IEEE/RSJ" tags, a
+# trailing "(ICRA)"/"(IROS)", and 2006's "Proceedings ... , 2006. ICRA 2006."
+_TAIL = r"(?=\s*(?:\(|,|\.|;|$))"
+
 VENUE_PATTERNS = {
-    "IROS": re.compile(r"intelligent robots and systems", re.I),
-    "ICRA": re.compile(r"robotics and automation", re.I),
+    "IROS": re.compile(
+        r"international (?:conference|workshop) on intelligent robots and systems"
+        + _TAIL,
+        re.I,
+    ),
+    "ICRA": re.compile(
+        r"international conference on robotics and automation" + _TAIL,
+        re.I,
+    ),
 }
 
-# Guards against the venue phrases matching journals and the surprisingly large
-# family of similarly-named conferences. Measured contamination before tightening:
-# ~7% of 2018 matches were ICRAE / ICRAS / ICMRA rather than ICRA.
+# Journals and magazines carrying the same words. The conference patterns above
+# already exclude the confusable *conferences*, so this only has to catch serials.
 VENUE_EXCLUSIONS = re.compile(
-    r"letters|transactions|journal"
-    r"|robotics and automation engineering"       # ICRAE
-    r"|robotics and automation sciences"          # ICRAS
-    r"|mechatronics, robotics and automation"     # ICMRA
-    r"|symposium on automation and robotics in construction"
-    r"|informatics in control|control, automation, robotics and vision"
-    r"|automation, control and robotics engineering|quality and testing"
-    r"|methods and models in automation",
+    r"letters|transactions|magazine|journal",
     re.I,
 )
 
