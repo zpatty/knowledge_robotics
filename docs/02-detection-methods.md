@@ -21,6 +21,37 @@ other documents.
 
 ---
 
+## 0. Instrument constraint: no LLM-based text assessment
+
+**Every indicator in this document is computable with lexicons, rule systems, dependency
+parsing, structural document parsing, or supervised classifiers trained on human-labeled
+data.** No indicator depends on a language model's judgment of a text. This is a binding
+constraint on the design, not a preference, and there are three reasons it is the right
+one:
+
+1. **Instrument constancy.** The study's central claims are about change across forty
+   years. You cannot measure a forty-year trend with an instrument whose calibration you
+   cannot hold fixed. Model versions are deprecated, retrained, and silently updated; a
+   result produced by one is not reproducible by the next. A lexicon and a rule set are
+   fixed objects that a reader can inspect and re-run in ten years.
+2. **Contamination.** Any model of recent vintage has trained on the later part of our
+   corpus and on the code repositories that are supposed to be our *outcome*. An
+   LLM-derived measure of "how underspecified is this 2023 paper" is partly a measure of
+   how well the model memorized that paper, and the contamination is worst exactly where
+   the corpus is densest. There is no clean way to correct for this in a time-series
+   design.
+3. **Auditability.** A reviewer can check a regex, a checklist, and an annotation
+   guideline. They cannot check a model's judgment, and a study whose headline construct
+   is unauditable will not — and should not — persuade.
+
+The cost is real and worth stating plainly: the underdetermination channel (§5) is
+sharper when a reader actually attempts reconstruction than when we count specification
+elements. §5 is designed around that loss. A model-based probe is documented as deferred
+future work in [`appendix-deferred.md`](appendix-deferred.md), to be revisited only with
+a frozen, versioned, self-hosted model and an explicit contamination analysis.
+
+---
+
 ## 1. Repair channel — codification caught in the act
 
 When an author writes "in practice we found it necessary to…", they are performing
@@ -43,15 +74,17 @@ Experiment sections. Seven target classes, each with distinct theoretical meanin
 | Manual intervention | "by hand", "manually", "human operator resets" | STK / MTK |
 | Necessity-without-reason | "it is essential to", "must be", with no justifying clause | RTK, thin base |
 
-**Build:** start with a seed lexicon (~300 patterns) for recall, hand-label a stratified
-sample of 3–5k sentences, fine-tune a small encoder (DeBERTa-v3 or ModernBERT) or few-shot
-an LLM with the labeled set as exemplars. Report per-class κ against two human annotators.
-**Cost:** low-moderate. One annotation round; inference is cheap.
+**Build:** a seed lexicon (~300 patterns) for recall, plus syntactic constraints (the
+necessity-without-reason class needs a parse to establish the *absence* of a justifying
+subordinate clause — that is a dependency-parse test, not a keyword test). Hand-label a
+stratified sample of 3–5k sentences against a written annotation guideline; train a small
+supervised encoder (DeBERTa-v3 / ModernBERT-scale) on those labels. Report per-class κ
+against two independent human annotators and release the guideline with the paper.
+**Cost:** moderate — one substantial annotation round. Inference is cheap.
 **Confounds:** *This is the most confounded indicator in the battery.* Writing style,
-venue norms, page limits, non-native-English authorship, and post-2023 LLM-assisted
-writing all move it. It must never be used alone, must be normalized within
-year × subfield × page-count strata, and should be reported alongside a style-only
-placebo (see [`05`](05-validation-and-threats.md) §3).
+venue norms, page limits, and non-native-English authorship all move it. It must never be
+used alone, must be normalized within year × subfield × page-count strata, and must be
+reported alongside the style placebo (see [`05`](05-validation-and-threats.md) §V4).
 
 ### R2 — Codification-effort locus
 **What:** *where* craft advice lives in the document. Migration from body text → footnotes →
@@ -70,7 +103,7 @@ no sensitivity analysis. A gain of 0.03 justified by nothing is pure λ on a bar
 **How:** extract numeric literals with surrounding context; classify each as
 *derived* (follows from a stated model/physical quantity), *measured*, *cited*, *swept*
 (a sensitivity analysis or ablation exists), or *bare*. Indicator = bare / total.
-Normalize by method-section length.
+Normalize by method-section length. Rule-based with a hand-audited sample.
 **Confounds:** deep-learning papers have vastly more hyperparameters by construction —
 must be compared within method families, not across.
 
@@ -92,7 +125,8 @@ This is the Collins TEA-laser test, made quantitative. If a technique diffuses o
 lines of personal contact, its executable content is not in the papers. If it diffuses to
 strangers who only ever read it, it is codified. **This is the strongest indicator family
 in the battery** — it is behavioral rather than linguistic, it is robust to writing style,
-and it is computable from metadata alone (so it works even where full text is unavailable).
+it needs no annotation, and it is computable from metadata alone (so it works even where
+full text is unavailable). It is also entirely unaffected by the §0 constraint.
 
 ### T1 — Independent Adoption Latency (IAL)
 **What:** time from a technique's originating publication to its first *successful,
@@ -110,9 +144,8 @@ prefer within-technique-over-time and within-subfield comparisons.
 (co-authorship distance ≤ 2, or a known advisor/postdoc relationship). High = knowledge
 moving through bodies.
 **How:** build the actor graph — co-authorship from the corpus, plus advisor/student edges
-where recoverable (thesis metadata, ProQuest, the Mathematics/CS Genealogy projects, lab
-web pages). Personnel movement is inferable from affiliation change across a person's
-publication sequence.
+where recoverable (thesis metadata, genealogy projects, lab web pages). Personnel movement
+is inferable from affiliation change across a person's publication sequence.
 **Note:** T1 and T2 are the pair that lets us make the study's cleanest causal statement.
 See the diff-in-diff in [`04`](04-study-design.md) §4, H2.
 
@@ -120,11 +153,11 @@ See the diff-in-diff in [`04`](04-study-design.md) §4, H2.
 **What:** techniques cited far more often than they are *used*. A method everyone cites and
 nobody reimplements is a method whose paper does not contain it.
 **How:** classify each citation context into: background mention / comparison baseline /
-*actual use* / extension. Citation-intent classification is a solved-enough task
-(SciCite-style models); fine-tune on ~2k robotics-specific labels. Indicator =
-use-citations / total citations, with baseline-comparison citations tracked separately
-(being used as a baseline usually implies a working reimplementation *or* a released one —
-which of the two is itself informative).
+*actual use* / extension. Citation-intent classification is a well-established supervised
+task (SciCite-style label schemes and models); fine-tune on ~2k hand-labeled
+robotics-specific contexts. Indicator = use-citations / total citations, with
+baseline-comparison citations tracked separately (being used as a baseline usually implies
+a working reimplementation *or* a released one — which of the two is itself informative).
 **Confounds:** foundational results are cited ritually; restrict to techniques within a
 comparable maturity band.
 
@@ -154,7 +187,8 @@ reproduce", "our reimplementation of [X] achieves", "using the authors' code", "
 correspondence with the authors"). Each hit is a *directed edge* from the reproducing paper
 to the failed technique — this yields a sparse but very high-quality labeled set for
 validating everything else.
-**Cost:** low to extract, and disproportionately valuable. Prioritize.
+**Cost:** low to extract, and disproportionately valuable — with the expert survey tabled,
+F1 is now one of the few sources of near-ground-truth in the design. **Prioritize.**
 
 ### F2 — Reimplementation performance gap
 **What:** when paper B reimplements technique A and reports a number, how far below A's
@@ -195,11 +229,12 @@ weights**; **CAD/BOM/fabrication** files; **benchmark** or challenge participati
 associated **tutorial/workshop**; **standard platform** use.
 
 Video deserves emphasis: it is *demonstrative, not propositional*. It shows without
-telling and cannot be reasoned from. Robotics adopted it early and near-universally. The
-video-attachment rate, and more interestingly *what the video is doing* (proving a claim
-that the text cannot support vs. illustrating one it can), is a proxy for irreducibly
-demonstrative content. Classifying video *function* from caption + referring text is a
-tractable and, as far as I know, novel measure.
+telling and cannot be reasoned from. Robotics adopted it early and near-universally. If
+IEEE's metadata carries a multimedia/supplementary flag ([`03`](03-corpus.md) §3.4), we
+get video presence for the *entire* corpus, unbiased, across four decades — which would be
+a first-class descriptive result on its own. Classifying video *function* from caption and
+referring text (proving a claim the text cannot support vs. illustrating one it can) is a
+further, tractable measure.
 
 ### S2 — Platform concentration
 **What:** the fraction of a subfield's empirical work running on a small number of standard
@@ -223,83 +258,91 @@ wide effective λ and a hollow Ω.
 releases, benchmark launches, platform launches, textbook and survey publications, standard
 ratifications, tutorial series.
 **Why:** these are the treatments in every quasi-experimental design in
-[`04`](04-study-design.md). Building this registry carefully is worth as much as any
-modeling effort in the project. Assemble semi-automatically (repo creation dates, dataset
-DOIs, first-release tags) and curate by hand for the ~200 largest events.
+[`04`](04-study-design.md), *and* — with the survey tabled — the dose-response response of
+our indicators to these events is now the study's primary validation anchor
+([`05`](05-validation-and-threats.md) §V3). Building this registry carefully is therefore
+worth as much as any modeling effort in the project. Assemble semi-automatically (repo
+creation dates, dataset DOIs, first-release tags) and curate by hand for the ~200 largest
+events.
 
 ---
 
-## 5. Underdetermination channel — the Executable Specification Probe (ESP)
+## 5. Underdetermination channel — without a model in the loop
 
-The most direct question one can ask of a method section is: **could a competent reader
-build this from the text alone?** Until recently that question was answerable only by
-actually trying, one paper at a time — which is why Raff's 255-paper study is the largest
-of its kind. Language models make it answerable at corpus scale, and this is the
-methodological centerpiece of the project.
+The question is unchanged: **could a competent reader build this from the text alone?**
+The honest way to answer it is to have someone try, which is why Raff's 255-paper
+reproduction study is the largest of its kind and why nobody has done it at corpus scale.
+Under the §0 constraint we cannot simulate that reader. What we *can* do is decompose the
+question into three transparent, auditable measures that together approximate it.
 
-The probe has four variants, in increasing order of cost and decreasing order of
-scalability.
+### U1 — Specification-checklist completeness *(the workhorse)*
+**What:** for each method family, a hand-authored checklist of the specification elements a
+working implementation actually requires. Then: what fraction does the paper supply?
 
-### ESP-A — Specification-gap enumeration
-Give a model the method section with results, related work, and every code/data reference
-stripped. Ask it to produce the list of decisions it would have to make, or questions it
-would have to ask the authors, in order to implement the technique. Output: a count and a
-taxonomy of gaps (missing hyperparameter, undefined procedure, ambiguous architecture,
-unstated preprocessing, unstated hardware setup, unstated tolerance/timing, unstated
-failure handling).
-**Scales to the whole corpus.**
+Examples of family checklists (~15 families, 12–25 items each):
 
-### ESP-B — Divergence under independent reading *(the key measure)*
-Sample *N* independent completions in which the model is asked to fill in every
-underdetermined detail and emit a structured specification. Measure the **divergence across
-completions**: disagreement on discrete choices, dispersion on continuous ones, structural
-edit distance between pipelines.
+| Family | Required elements (abbreviated) |
+|---|---|
+| Model-based control | plant model, state definition, gains, sample rate, saturation limits, initialization, tuning procedure, stability conditions |
+| SLAM / estimation | sensor model, noise parameters, initialization, loop-closure criteria, outlier rejection thresholds, map representation, timing |
+| Learned policy | observation space, action space, reward function, architecture, optimizer + LR, episode length, termination conditions, randomization ranges, training budget, eval protocol, seeds |
+| Manipulation hardware | gripper spec, object set, pose initialization, tolerance, calibration procedure, reset procedure, failure criteria |
+| Fabrication | materials + supplier, cure/deposition parameters, mold geometry, post-processing, yield rate |
 
-This measure is the one I would build first, because:
+**How:** rule-based extraction per checklist item, keyed to the family classifier. Score =
+fraction present. Crucially, encode the *adequacy* distinction in the rules: "learning
+rate: 3e-4" is present; "we tune the learning rate" is not. Hand-audit a stratified sample
+of 300 papers to measure extraction precision per item.
+**Cost:** high up-front — checklist authoring genuinely requires the domain roboticist, and
+this is where their time is best spent. Cheap thereafter, and fully reusable.
+**Precedent:** this is the NeurIPS/ML reproducibility checklist idea, except computed from
+the text rather than self-reported by authors — which removes the honesty problem and makes
+it retroactively applicable to 1984.
+**Limitation, stated up front:** presence is not sufficiency. A paper can name every
+checklist item and still be unbuildable. U1 measures a necessary condition, not the
+construct itself. This is the real cost of dropping the model-in-the-loop probe, and it
+should be conceded in the paper rather than argued around.
 
-- It requires **no ground truth whatsoever**. It measures a property of the text — how far
-  the text constrains a reader — which is exactly the underdetermination we are after.
-- It has a clean interpretation as conditional entropy: *H*(implementation | text). This is
-  a formally respectable definition of codification deficit, not a proxy for one.
-- It is comparable across eras and subfields in a way that lexical markers are not.
-- It is cheap: *N* ≈ 8–16 completions per paper on a mid-sized model.
+### U2 — Delegation density and chain depth
+**What:** the places where a paper hands its specification off somewhere else — "as
+described in [12]", "we use standard settings", "following [X]", "default parameters", "as
+in our previous work", "the usual approach". Each is a point where the text is not
+self-contained.
+**How:** lexical patterns plus reference resolution. Classify each delegation by *target*:
 
-### ESP-C — Ground-truth reconstruction
-For papers with an official code release, have the model produce an implementation from the
-text alone, then diff structurally against the released code (call graph, module set,
-hyperparameter values, pipeline order). What the model gets wrong *is* what the paper failed
-to codify. Yields a labeled dataset for calibrating ESP-A/B.
+- **to a citation** — transitively recoverable. Follow the chain: how many hops to a
+  self-contained specification, and does the chain terminate at one, or in a loop, or at a
+  paper nobody can access? **Delegation-chain depth is a genuinely novel measure and it is
+  cheap.** A field whose specifications bottom out in three hops is differently codified
+  from one whose chains run to eight.
+- **to a code artifact** — codified, and dated (feeds S4).
+- **to an unnamed convention** — "standard practice", "the usual", "common settings". This
+  is *collective tacit knowledge made visible in text*, and it is the only lexical hook we
+  have on CTK. With the insider/outsider survey tabled, this is now the study's sole CTK
+  instrument, which makes it more important than its simplicity suggests.
+- **to nothing** — dangling.
 
-### ESP-D — Parameter recovery rate
-The scalar, cheap version of ESP-C: ask the model to predict specific hyperparameters, and
-score recovery against released configs. Simple, interpretable, easy to report.
+**Cost:** low. **Confounds:** page limits drive delegation upward independent of
+tacitness — normalize within venue-year, and note that this cuts the *opposite* way from
+the usual story (a tight page limit forces codification out of the text without changing
+what is known).
 
-### Contamination control — non-negotiable
+### U3 — Hedge attachment to specification
+**What:** hedging *attached to a specification element* — "approximately 0.5", "a suitable
+gain", "an appropriate threshold", "carefully chosen", "roughly 20 trials" — as distinct
+from hedging in general, which is a style measure and useless here.
+**How:** dependency parse; count hedge terms only where they modify a parameter, threshold,
+quantity, or procedure. The attachment requirement is what keeps this from collapsing into
+a readability score. Base the hedge lexicon on Hyland's taxonomy, restricted by attachment.
+**Cost:** low-moderate. Needs a parser that survives 1980s two-column OCR — check this
+early on old papers, since parse quality is likely to degrade going back in time and that
+degradation would masquerade as a time trend.
 
-A model that has memorized the paper is not measuring the text; it is measuring its own
-prior. Mandatory controls:
-
-1. **Temporal holdout.** Reserve papers published after the probe model's training cutoff
-   as an uncontaminated stratum. Compare indicator distributions in-cutoff vs. out.
-2. **Redaction.** Strip title, author names, affiliations, method names, distinctive
-   dataset names, and characteristic numbers before probing. Verify redaction adequacy by
-   asking the model to name the paper.
-3. **Recognition probe.** Explicitly measure recognition rate per paper and use it as a
-   covariate — or exclude recognized papers and report the sensitivity.
-4. **Model triangulation.** Run ESP with ≥ 2 model families with different training data;
-   report cross-model correlation. If the measure is a property of the text rather than of
-   any one model, models should agree.
-5. **Counterfactual paraphrase.** Rewrite a sample of method sections to be *equally
-   detailed but lexically different*; the measure should be stable. Rewrite them to be
-   *less* specific (delete a known parameter); the measure should move in the predicted
-   direction. This is the strongest single check that ESP measures specification content
-   rather than surface form — see [`05`](05-validation-and-threats.md) §2.
-
-### An honest limit
-ESP measures whether the text determines an implementation *for a reader who already has
-the field's background*. It therefore captures RTK well, MTK partially (it will flag
-"unstated hardware setup"), and STK/CTK barely at all — the model has no body and no
-community membership. State this plainly rather than letting the measure over-claim.
+### What U1+U2+U3 do and don't buy
+Together they estimate whether the text *contains* the specification. They do not estimate
+whether the specification is *sufficient* — that requires an attempted reconstruction. Treat
+the composite as a lower bound on the codification deficit, report it as such, and rely on
+the transfer and failure channels for claims that need the stronger construct.
 
 ---
 
@@ -311,19 +354,21 @@ deficit relates to the propositional knowledge underneath. Per technique per per
 ### B1 — Justification-type classification
 Label each technique's core "why it works" claim: **derived** (from a stated model, with
 argument) / **bounded** (formal guarantee) / **analogical** / **bio-inspired** /
-**empirical-only** / **absent**. Sentence-level classification over the passages where the
-technique is introduced or defended.
+**empirical-only** / **absent**. Supervised sentence classification over the passages where
+the technique is introduced or defended, on the same annotation footing as R1.
 
 ### B2 — Reference reach and depth
 Fraction of supporting citations outside robotics venues (into mathematics, control theory,
 physics, statistics, neuroscience); and the age distribution of those citations. A wide,
-deep base cites old and external. A narrow base cites recent and internal.
+deep base cites old and external. A narrow base cites recent and internal. **Computable
+from metadata alone** — which makes B2 the one epistemic-base indicator available for the
+Phase 1 metadata-only study, and therefore the one that carries H5 in its first pass.
 
 ### B3 — Explanatory vocabulary ratio
 Density of model-presupposing terms (stability, convergence, observability, identifiability,
 bound, guarantee, invariant, optimality, consistency) relative to purely performative ones
-(achieves, outperforms, demonstrates, shows, state-of-the-art). Blunt but cheap, and a good
-sanity check on B1.
+(achieves, outperforms, demonstrates, shows, state-of-the-art). Blunt but cheap, works on
+abstracts alone, and a good sanity check on B1.
 
 ### B4 — Stated operating envelope
 Does the paper state conditions under which the technique fails or does not apply? Papers
@@ -341,15 +386,19 @@ Do **not** average these into one number. Instead:
 1. **Estimate a latent factor model** over the indicator battery, per technique-year, with
    channels as separate measurement blocks. Test whether the indicators load on one factor
    (a general codification deficit) or several (which would be the more interesting and, I
-   expect, the correct result — plausibly a *specification* factor from ESP + R, a
+   expect, the correct result — plausibly a *specification* factor from U + R, a
    *transfer* factor from T, and an *embodiment* factor from F3 + S1 + S2).
 2. **Report each channel separately** in all headline results. If the transfer channel and
    the linguistic channel disagree about a subfield, that disagreement is a finding, not
-   noise.
+   noise. With no external human anchor, **inter-channel convergence is now carrying real
+   validation weight** ([`05`](05-validation-and-threats.md) §V5), so the channels must be
+   built from disjoint data sources and kept that way.
 3. **Weight by measurement quality.** The transfer and failure channels are behavioral and
    robust; the repair channel is linguistic and fragile. Let the model know that.
 4. **Preserve the Collins taxonomy.** Tag every indicator with the tacit kind(s) it can
-   detect, and never claim STK/CTK evidence from an RTK-only instrument.
+   detect, and never claim STK/CTK evidence from an RTK-only instrument. Under the current
+   scope, CTK is reachable only through U2's unnamed-convention class, and that should be
+   said out loud rather than quietly over-read.
 
 ## 8. Build order
 
@@ -357,6 +406,6 @@ Priority for the first pass, by (value × feasibility) ÷ cost:
 
 | Tier | Indicators | Rationale |
 |---|---|---|
-| **1 — build first** | ESP-B, T1, T2, S1, S4, F1 | Metadata-only or ground-truth-free; highest leverage; ESP-B is the novel instrument and F1 gives a validation set almost for free. |
-| **2** | R1, R3, B1, B2, F2, F3, S2, S3 | Need full text and/or annotation rounds. |
-| **3** | T3, T4, R2, R4, B4, ESP-C/D | Need author disambiguation, structural parsing, or code-linked subsets. |
+| **1 — build first** | T1, T2, S1, S2, S4, B2 | Metadata-only. Immune to the full-text access risk, immune to the §0 constraint, and sufficient for the Phase 1 study and a first pass at H2 and H5. |
+| **2** | F1, U1, U2, R1, R3, B1, B3 | Need full text (or abstracts, for B3). F1 first within this tier — it is cheap and it is ground truth. U1 gated on checklist authoring. |
+| **3** | T3, T4, R2, R4, F2, F3, F4, U3, B4 | Need author disambiguation, structural parsing, dependency parsing, or table extraction. |

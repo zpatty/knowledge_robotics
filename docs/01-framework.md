@@ -38,7 +38,7 @@ very different policy implications:
 |---|---|---|---|
 | **Relational (RTK)** | Could in principle be written down; isn't, for contingent reasons — page limits, it seemed obvious, nobody asked, competitive advantage. | The actual gain schedule; the fact that the demo only works after the motors warm up. | Yes. Most of what we will detect. |
 | **Somatic (STK)** | Resides in a body or a machine's material particulars; limited by embodiment. | Hand-tuning an impedance controller by feel; hand-laying composite; "knowing" a gripper is about to slip. | Partially — can be replaced by different techniques, not transcribed. |
-| **Collective (CTK)** | Resides in a community's shared judgment; depends on socialization. | What counts as a fair baseline comparison; what "works reliably" means; which failure modes are worth reporting. | No, not into text. |
+| **Collective (CTK)** | Resides in a community's shared judgment; depends on socialization. | What counts as a fair baseline comparison; what "works reliably" means; which failure modes are worth reporting. | No, not into text. **Effectively out of scope** — see [`appendix-deferred.md`](appendix-deferred.md) §A. |
 
 A fourth category matters specifically in robotics and I will treat it as its own kind:
 
@@ -69,11 +69,20 @@ points:
    see it disappearing: a code release, a benchmark, a standard platform, a tutorial, a
    textbook chapter. Codification events are dated, discrete, and abundant in robotics.
    Much of the empirical leverage comes from studying the field around them.
-3. **The interesting quantity is relational.** The question the study is really asking is
-   not "how tacit is robotics" but *how D and the epistemic base co-evolve* — whether
-   theory precedes and enables codification, or whether practice runs ahead and theory
-   arrives afterwards to explain it. Mokyr's history contains both patterns. Robotics,
-   observed at high time resolution, should let us say which happens when.
+3. **The interesting quantity is relational, and probably cyclical.** The question the
+   study is really asking is not "how tacit is robotics" but *how D and the epistemic base
+   co-evolve*. Mokyr's history contains both directions — practice ahead of theory, theory
+   ahead of practice — and the working hypothesis here is that these are phases of one
+   oscillation rather than rival regimes: practice runs ahead at a frontier, theory catches
+   up and widens the base, the widened base makes codification cheap, codification opens a
+   new frontier. See [`04`](04-study-design.md) §4, H5, where this is developed and where
+   the choice of statistics follows from it.
+
+4. **We measure comparatively, never absolutely.** With the expert survey deferred
+   ([`appendix-deferred.md`](appendix-deferred.md) §A) the indicators have no calibrated
+   units. Every claim is a ranking, a gradient, an event-study delta, or a phase
+   relationship. No statement of the form "robotics is X% tacit" is supportable, and none
+   should appear.
 
 ## 1.4 The second construct: epistemic base width
 
@@ -99,11 +108,12 @@ Two commitments distinguish this from a standard scientometrics paper:
   (ICP, MPPI, domain randomization, RRT*, impedance control, tendon routing, cable-driven
   transmission design) that persist across hundreds of papers and decades. Papers are
   observations of techniques, not the things themselves. See [`04`](04-study-design.md) §1.
-- **The instrument is partly generative.** The most direct probe of textual
-  underdetermination — asking whether a competent reader can reconstruct an executable
-  specification from the paper alone, and measuring how much independent readers diverge
-  when they try — was not practical before large language models. It is now, and it is
-  the novel methodological contribution on offer here. See [`02`](02-detection-methods.md) §6.
+- **The instruments are auditable by construction.** Every measure is built from lexicons,
+  rule systems, parses, and supervised classifiers trained on published annotation
+  guidelines — no measure depends on a language model's judgment of a text. The reasoning
+  is in [`02`](02-detection-methods.md) §0, and the short version is that a forty-year
+  trend cannot be measured with an instrument whose calibration cannot be held fixed, and
+  whose training data includes the later half of the corpus.
 
 ## 1.6 Prior work this builds on
 

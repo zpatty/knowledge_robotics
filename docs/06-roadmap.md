@@ -3,73 +3,106 @@
 Sequenced so that the highest-risk assumptions are tested first and cheaply, and so that no
 phase depends on an access route that may not arrive.
 
+**Current scope constraints** (set by the PI, and reflected throughout these documents):
+no expert survey; no LLM-based text assessment. Both are recorded with their re-entry
+conditions in [`appendix-deferred.md`](appendix-deferred.md). IEEE API access is available;
+full-text/TDM rights are a separate matter and not yet in hand.
+
 ## Phase 0 — Feasibility (weeks 1–4)
 
 Purpose: kill the project early if it deserves to be killed.
 
-1. **Start the IEEE TDM licence conversation immediately.** Longest lead item; everything
-   in Layer B waits on it. Do this in week 1 regardless of anything else.
-2. **Fix the environment's network policy** ([`03`](03-corpus.md) §3.6) or move corpus
+1. **Start the IEEE TDM licence conversation immediately.** Longest lead item; all of
+   Layer B waits on it, and it is *separate* from API access. Week 1, regardless of
+   anything else.
+2. **Fix the environment's network policy** ([`03`](03-corpus.md) §3.7) or move corpus
    assembly elsewhere.
-3. **Assemble Layer A** — full ICRA + IROS metadata and citation graph from OpenAlex/Crossref/
-   DBLP. Verify the actual paper counts and replace every estimate in these documents.
-4. **Measure arXiv/OA overlap by year.** This number determines the shape of the whole
-   project. Report it before designing anything further.
-5. **ESP-B pilot on 200 papers** — stratified by decade and subfield. Does divergence vary
-   sensibly? Run the ablation and paraphrase checks on 20 of them.
-6. **Hand-annotate 300 sentences** for the R1 classes; measure inter-annotator agreement.
-   If humans cannot agree on what craft advice is, no classifier will help.
+3. **Harvest Layer A from the IEEE API.** Verify actual ICRA/IROS paper counts and replace
+   every estimate in these documents. Then the critical measurement: **the
+   abstract-coverage-by-year curve**, plus whether affiliations and supplementary-material
+   flags are returned for the early years. The "measure a complete corpus" argument in
+   [`03`](03-corpus.md) §3.3 stands or falls on this, and everything downstream is scoped
+   by it.
+4. **Assemble Layer A′** — the reference graph, from OpenAlex/Crossref. Check merge quality
+   against the IEEE record.
+5. **Measure arXiv/OA full-text overlap by year.** Determines how much of Phase 2 is
+   possible at all.
+6. **Check the H5 sample constraint.** How many techniques will plausibly have ≥ 15 years
+   of usable history? If the answer is small, H5a/H5b are underpowered from the start and
+   H5d (the lifecycle design) becomes the primary test — better to know this in week 3 than
+   in month 8.
+7. **Hand-annotate 300 sentences** for the R1 classes against a written guideline; measure
+   inter-annotator agreement.
+8. **Pre-register the D1 subfield ordering** (V2) before computing anything.
 
-**Gate:** ESP-B pilot shows signal and survives ablation; OA overlap ≥ ~25% in the modern
-era; R1 annotation κ ≥ 0.6. If all three fail, restructure per
-[`05`](05-validation-and-threats.md) §4.
+**Gate:** abstract coverage adequate back to at least ~1995; OA full-text overlap ≥ ~25% in
+the modern era; R1 annotation κ ≥ 0.6. Failure on the first reshapes the study rather than
+ending it (pre-1995 becomes metadata-only); failure on all three means restructuring per
+[`05`](05-validation-and-threats.md), *Stopping conditions*.
 
 ## Phase 1 — Minimum viable study (weeks 5–10)
 
-A self-contained, publishable result that uses **no full text at all**, so it is immune to
-the access risk. Deliberately front-loaded.
+Self-contained and publishable, using **no full text at all** — immune to the TDM risk and
+untouched by both scope constraints. Deliberately front-loaded.
 
 - Seed technique registry: **20 techniques**, hand-curated, spanning the algorithm↔hardware
-  axis, each with dated origin papers and a dated codification event.
-- Actor graph and lineage distances from Layer A.
-- Compute **T1 (independent adoption latency)** and **T2 (lineage ratio)** for all 20.
-- Compute **S1/S2/S4** from metadata and artifact links.
-- Run the **H2 difference-in-differences** on this small set, with pre-trend tests.
-- Run **V1 (known cases)** and **V5 (shuffled-lineage placebo)**.
+  axis, each with dated origin papers and dated codification events.
+- Actor graph and lineage distances from Layers A/A′.
+- **T1** (independent adoption latency) and **T2** (lineage ratio) for all 20.
+- **S1/S2/S4** from metadata and artifact links — including, if the IEEE flags exist, the
+  forty-year video-attachment series, which is a publishable descriptive result by itself.
+- **B2** (reference reach and depth) — the one epistemic-base indicator computable from
+  metadata, and therefore the one that carries the first pass at H5.
+- **H2 difference-in-differences** with pre-trend tests.
+- **H5d** on this small set: the technique-age lifecycle profile of B2 against the
+  transfer-channel deficit. Underpowered at n=20, but it establishes whether the cyclical
+  signature is visible at all before committing to the full panel.
+- Validation: **V1** (blind known-case), **V5** (shuffled-lineage and style placebos).
 
-**Output:** a workshop paper or preprint — *"Techniques that travel with people: measuring
-tacit knowledge transfer in robotics from bibliometric traces alone."* Also the thing to
-show collaborators and funders.
+**Output:** a preprint — *"Techniques that travel with people: measuring tacit knowledge
+transfer in robotics from bibliometric traces alone."*
 
-## Phase 2 — Full-text instruments (weeks 8–20, overlapping)
+## Phase 2 — Text instruments (weeks 8–20, overlapping)
 
-Begins as soon as any full text arrives; scoped to whatever subset exists.
+Two tracks, because they have different access dependencies:
 
-- Ingest and parse (GROBID + LaTeX); build the section-structured store.
-- Train R1 classifier; compute R1–R4.
-- Compute B1–B4 and F1–F4.
-- Run ESP-A/B at scale; ESP-C/D on the code-linked subset.
-- Build abstract-only reduced-form variants and calibrate ([`03`](03-corpus.md) §3.3).
+**2a — Abstract-level, corpus-wide** (needs only Layer A; start immediately):
+- Subfield assignment from IEEE index terms + embeddings.
+- B3, and reduced-form abstract variants of R1 and U2.
+- Calibrate reduced forms against full-text counterparts once 2b exists.
+
+**2b — Full-text** (scoped to whatever subset exists):
+- Ingest and parse (GROBID + LaTeX, preferring LaTeX); section-structured store.
+- **F1 first** — cheap, and the only near-ground-truth in the design.
+- **U1 checklist authoring** — the domain roboticist's highest-value task, and the critical
+  path for the underdetermination channel. ~15 families × 12–25 items.
+- U2 (delegation density and chain depth), U3 (hedge attachment).
+- R1 classifier training; R1–R4.
+- B1, B4; F2–F4.
 - Fit the factor model ([`02`](02-detection-methods.md) §7). **Report the factor structure
-  as a finding** — how many dimensions the deficit actually has is a real question and we
-  should not assume the answer.
+  as a finding** — how many dimensions the deficit has is a real question.
 
 ## Phase 3 — Validation (weeks 14–26, overlapping)
 
-- **Launch the expert survey early** — IRB lead time is real, and V2 gates the credibility
-  of everything. Do not let this slip to the end.
-- V3 reproduction ground truth; V4 codification-event dose-response; full V5 battery.
-- The insider/outsider CTK sub-study.
-- **Pre-register** [`04`](04-study-design.md) §4 before the confirmatory analyses; seal the
-  20% hold-out.
+- **V3 codification-event dose-response** — now the primary anchor. Hand-build the ~200-event
+  dose scale *blind* to indicator values. This is the most important validation work in the
+  project and should not be squeezed.
+- V4 reproduction ground truth; pursue the course-based reimplementation route actively,
+  since it is the best remaining human anchor.
+- Full V5 battery, including the parser-degradation control.
+- V6 dependency matrix and inter-channel convergence.
+- **Pre-register** [`04`](04-study-design.md) §4; seal the 20% hold-out.
 
 ## Phase 4 — Analysis (weeks 24–40)
 
 - Descriptives D1–D5.
-- Confirmatory H1–H7. The spine is **H2** (codification → independent diffusion), **H4**
-  (conserved frontier), **H5** (Ω↔λ direction of travel).
-- The six case studies, read qualitatively, in parallel with the quantitative work rather
-  than after it — they are how we catch the instrument lying.
+- Confirmatory H1–H7. The spine is **H2** (codification → independent diffusion) and the
+  joint **H4 + H5** (conserved frontier / oscillating Ω↔λ relationship), estimated and
+  reported together as one mechanism.
+- Power analysis for H5a/H5b before estimation (T-J).
+- The six case studies, read qualitatively **in parallel** with the quantitative work rather
+  than after it — they are how we catch the instrument lying, and with the survey tabled
+  they are also the main source of interpretive grounding.
 
 ## Phase 5 — Write-up and release (weeks 36–52)
 
@@ -79,36 +112,34 @@ Two papers and the dataset release per [`04`](04-study-design.md) §6.
 
 ## Fast path
 
-If only six weeks exist: **Phase 0 items 3–5, then Phase 1.** That yields the transfer-channel
-result on 20 techniques plus the ESP-B pilot. It is a real contribution on its own and it
-de-risks everything else.
+If only six weeks exist: **Phase 0 items 3–6, then Phase 1.** Yields the transfer-channel
+result on 20 techniques plus a first look at the H5 lifecycle signature. A real contribution
+on its own, and it de-risks everything else.
 
 ## Team and skills
 
-Roughly: one person on corpus/infrastructure (bibliometric plumbing, disambiguation, parsing);
-one on NLP/LLM instruments (R, B, ESP); one on causal inference (panel methods, event studies,
-survival analysis); one domain roboticist for the registry, case studies, and expert survey
-design. The domain roboticist is not optional — technique identity and subfield judgment
-cannot be outsourced to a classifier, and getting them wrong invalidates the panel.
+One person on corpus infrastructure (API harvesting, disambiguation, parsing); one on
+computational text analysis (lexicons, annotation, supervised classifiers, dependency
+parsing — *not* an LLM-tooling role, given the §0 constraint); one on causal inference
+(panel methods, event studies, survival analysis, and now spectral/regime-switching methods
+for H5); one domain roboticist. The roboticist is not optional and their load has *risen*
+under the current constraints — technique identity, the U1 checklists, the blind V1 and V3
+classifications, and the case studies all require them, and none can be outsourced to a
+classifier.
 
 ## Open decisions
 
-These are yours to make; the plan is written to accommodate either branch of each.
-
-1. **Full-text route.** Pursue the IEEE TDM licence (slower, complete, removes the openness
-   bias), or accept an arXiv/OA-only corpus (fast, biased, requires the correction machinery
-   in [`03`](03-corpus.md) §3.3)? My recommendation: start the licence in week 1 *and* build
-   on OA in the meantime — they are not exclusive, and the plan is sequenced so nothing
-   blocks on the licence.
-2. **Emphasis.** A methods paper (novel instrument for measuring codification deficit,
-   audience = scientometrics/STS) or a findings paper (Mokyr's framework tested on 40 years
-   of robotics, audience = economics of innovation)? The plan produces both, but which one
-   leads determines where validation effort versus modeling effort goes. My recommendation:
-   lead with methods, because the instrument is the genuinely new thing and the findings are
-   only as credible as it is.
-3. **Scope of the expert survey.** A light validation instrument (~30 people, ~50 items) or
-   a substantive component with its own findings (the insider/outsider CTK study)? The
-   latter costs more and is, I think, the better paper.
-4. **Whether to include journals** (T-RO, RA-L, IJRR) in the main panel. Including them
-   captures technique maturation but breaks the clean venue-normalization story. Suggest:
-   conference-only for the main panel, journals as a secondary analysis.
+1. **Full-text route.** TDM licence (slower, complete) versus arXiv/OA-only (fast, biased).
+   *Recommendation:* start the licence in week 1 *and* build on OA meanwhile — not exclusive,
+   and nothing in the plan blocks on it.
+2. **Emphasis.** Methods paper or findings paper first? *Recommendation:* this has shifted.
+   With the model-based probe deferred, the methods contribution is less novel — U1/U2/U3
+   are careful rather than new — while the revised H5 (an oscillating Ω/λ relationship,
+   tested spectrally over forty years) is a genuinely original empirical claim. **Lead with
+   the findings paper**, and let the methods stand as its instrument section plus a
+   dataset release.
+3. **Journals in the main panel?** T-RO/RA-L/IJRR capture technique maturation but break the
+   venue-normalization story. *Suggestion:* conference-only main panel, journals secondary.
+4. **Course-based reimplementation** ([`05`](05-validation-and-threats.md) §V4) — worth
+   arranging? It is the best remaining human-generated construct anchor and the cheapest
+   partial substitute for the survey.
