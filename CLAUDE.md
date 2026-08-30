@@ -36,11 +36,19 @@ confusing thing about it:
 ### The prior work on `master` is not referenced by the plan
 
 `master` contains `robotics_knowledge.ipynb`, `robotics_knowledge_arxiv.py`, and
-`xploreapi.py` — an earlier attack on the *same* Ω/λ question by topic modeling, and a
-working IEEE Xplore API wrapper. Its commit log records that it "can now scrape IEEE
-Xplore for all ICRA and IROS papers." None of the planning documents cite it. Before
-building corpus tooling, check what is already there; before treating the IEEE API as
-unexercised, note that it has been called from this repository before.
+`xploreapi.py` — an earlier attack on the *same* Ω/λ question by MALLET/LDA topic
+modeling, plus IEEE's own distributed Xplore sample client. Its commit log records that
+it "can now scrape IEEE Xplore for all ICRA and IROS papers."
+
+**The pipeline itself is superseded and not worth reviving** (the PI's own assessment),
+but it retired three of the plan's unverified assumptions about the IEEE API — the
+`max_records` ceiling, deep paging, and the venue title strings. Those findings are
+written up in `docs/07-harvest-operations.md`, *What the 2020 code on `master` already
+settles*, and are already folded into `src/tacit/ieee.py`. Do not re-derive them.
+
+⚠️ **`robotics_knowledge.ipynb` on `master` has an IEEE API key hardcoded in three
+cells, in a public repo.** Treat it as compromised and revoke it; it is unrelated to
+the current key. Details in `docs/07`.
 
 ## Document map
 
@@ -138,15 +146,19 @@ machine for harvesting and cloud sessions for analysis and code.
 Nothing in `src/` or `scripts/` has been run against a live API. Treat every corpus
 count in the docs as an estimate. Specifically open:
 
-- Whether the IEEE key is active at all — its granted status reads *waiting*.
-- The real `max_records` ceiling (`ieee.py` assumes 200) and whether deep
-  `start_record` paging is permitted.
+- Whether the current IEEE key is active at all — its granted status reads *waiting*.
 - Which fields IEEE returns per era — abstracts, affiliations, index terms, and
   especially supplementary-material flags, which `S1` leans on heavily.
 - OpenAlex abstract coverage before ~2000. **This is the Phase 0 gate**: the
   abstract-coverage-by-year curve is the single most important number to establish.
-- Exact IEEE `publication_title` strings across forty years of renamed proceedings.
-  `VENUES` in `ieee.py` holds one variant per venue; expect to need several.
+- Whether the venue title strings hold across all forty years. They worked for a bulk
+  pull in 2020, but IROS ran as a *Workshop* before 1989; `VENUE_TITLE_VARIANTS` in
+  `ieee.py` carries the alternates, and the completeness audit is what catches a
+  variant that silently returns zero for an era.
+
+Settled from `master` and no longer open: the 200-record per-call ceiling (and that
+larger requests are **clamped, not rejected**), deep `start_record` paging, and the
+venue title strings.
 
 ## Working notes for Claude
 

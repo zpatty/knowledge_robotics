@@ -91,20 +91,75 @@ the session, and a 65k-work corpus dump should not be committed to the repo. Pre
 running the harvest on a persistent machine and using cloud sessions for analysis and
 code.
 
-## What is unverified
+## What the 2020 code on `master` already settles
 
-None of this has been run against the live APIs — the development environment's network
-policy denies outbound HTTPS to everything but package registries ([`03`](03-corpus.md)
-§3.7). Specifically unverified, in rough order of how much they would change the plan:
+The `master` branch carries an earlier pass at this corpus (see the `CLAUDE.md` note on
+branch topology): `xploreapi.py`, which is IEEE's own distributed Python sample client,
+and a notebook that calls it. Its commit log reports a successful full scrape of both
+venues. The code is not worth reviving — it is a MALLET/LDA topic-modeling pipeline on
+a different question — but it does retire three of the unknowns below for free, and it
+is authoritative in a way a guess is not:
 
-- **Whether the IEEE key is active.** Its granted status reads *waiting*.
-- **The real `max_records` ceiling** (assumed 200 in `ieee.py`) and whether deep
-  `start_record` paging is permitted. An over-large `max_records` that is silently
-  truncated would leave gaps that look like missing papers.
+- **`max_records` really is capped at 200.** IEEE's client hardcodes
+  `resultSetMaxCap = 200` and *clamps* larger requests rather than rejecting them. This
+  is the dangerous failure mode the plan worried about: an over-large request returns
+  200 records and no error, so a harvest built on a larger step would page past records
+  it never fetched. `MAX_RECORDS` in `ieee.py` is now stated as confirmed.
+- **Deep `start_record` paging is permitted.** The 2020 notebook pages
+  `start_record = i*200 + 1` across an entire venue's history in one loop.
+- **The venue title strings carry no `IEEE` prefix.** The successful run used
+  `International Conference on Robotics and Automation` and
+  `International Conference On Intelligent Robots and Systems` — *not* the
+  `IEEE …` / `IEEE/RSJ …` forms this repo's first draft assumed. `VENUES` in `ieee.py`
+  now uses the empirically-working strings, with `VENUE_TITLE_VARIANTS` holding the
+  alternates for the probe to try.
+
+Two further lessons, both taken into `ieee.py`:
+
+- **Pin the sort when paging.** IEEE's client defaults to
+  `sort_field=article_title&sort_order=asc`. Ours set no sort at all, which leaves
+  page-boundary ordering unspecified and can silently skip or duplicate records across
+  a multi-call harvest. Now pinned.
+- **The 2020 loop is a worked example of the failure this repo's budget guard exists to
+  prevent.** It reads `total_records` once, floor-divides by 200, and then fetches the
+  remainder with a *hardcoded* count (`161`) — correct for one venue on one day and
+  wrong forever after, and every retry of it costs the full daily allowance.
+
+**Note also that the 2020 code paged the entire corpus in a single run**, which either
+predates the 200/day limit or exceeded it. Do not read it as evidence that the current
+key can do the same.
+
+## What is still unverified
+
+Nothing in `src/` or `scripts/` has been run against the live APIs — the development
+environment's network policy denies outbound HTTPS to everything but package registries
+([`03`](03-corpus.md) §3.7). Specifically unverified, in rough order of how much they
+would change the plan:
+
+- **Whether the current IEEE key is active.** Its granted status reads *waiting*. (The
+  2020 key is a separate credential and must not be reused — see the security note
+  below.)
 - **Which fields the IEEE API returns per era** — abstracts, affiliations, index terms,
   and especially supplementary-material flags, which S1 would lean on heavily.
 - **OpenAlex abstract coverage for pre-2000 robotics**, which is the Phase 0 gate.
-- **Exact IEEE `publication_title` strings** across forty years of renamed proceedings.
-  `VENUES` in `ieee.py` holds one variant per venue; expect to need several.
+- **Whether the venue title strings above cover all forty years.** They worked for a
+  bulk pull in 2020, but IROS ran as a *Workshop* before 1989 and proceedings titles
+  were renamed more than once; the per-venue-year completeness audit is what catches a
+  variant that silently returns zero for an era.
 
-The probe script exists to answer the first three in one sitting, for eight calls.
+The probe script answers the field-availability question in one sitting, for eight
+calls. With the ceiling and paging questions now settled from `master`, its ceiling test
+is a cheap confirmation rather than a live unknown.
+
+## Security note: the 2020 API key is exposed
+
+`robotics_knowledge.ipynb` on the `master` branch has an IEEE Xplore API key hardcoded
+as a string literal, in three cells, in a **public** repository — so it should be
+treated as compromised regardless of whether it is still active. **Revoke it at the IEEE
+developer portal.** It is unrelated to the current key, which is why nothing in this
+repo's tooling depends on it.
+
+Rewriting `master`'s history to purge the value is optional and mostly theatre once the
+key is revoked; revocation is the part that matters. The current design keeps
+credentials in `.env` (gitignored) or the environment, read via `config.require()`, and
+`cache.py` scrubs them from cache keys — so this class of leak should not recur.

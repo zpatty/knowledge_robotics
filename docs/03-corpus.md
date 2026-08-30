@@ -105,10 +105,15 @@ So the roles invert from the first draft:
 Field availability across four decades is unverified, and a 2023 record tells us nothing
 about a 1986 one. `scripts/probe_ieee.py` spends ~8 calls to establish: whether the key
 is active at all (the granted key's status reads *waiting*, which may mean not yet
-approved); the real `max_records` ceiling and whether deep `start_record` paging is
-permitted; and which fields — abstract, affiliations, index terms, multimedia — are
+approved); and which fields — abstract, affiliations, index terms, multimedia — are
 actually returned per era. **Those eight calls determine the entire harvest design and
 are worth more than eight hundred calls of bulk data.** Run it with `--dry-run` first.
+
+Two questions the probe was originally meant to answer are already settled, from the
+2020 code on the `master` branch ([`07`](07-harvest-operations.md), *What the 2020 code
+already settles*): the `max_records` ceiling is genuinely 200 and larger requests are
+*clamped rather than rejected*, and deep `start_record` paging works. The same source
+corrects the venue title strings — the working forms carry no `IEEE` prefix.
 
 **The abstract-coverage-by-year curve remains the single most important number to
 establish in week 1.** If coverage thins before ~1995, the pre-1995 analysis is
