@@ -29,6 +29,8 @@ the gap between a method section and an executable specification.
 | [`docs/08-phase0-findings.md`](docs/08-phase0-findings.md) | **Read before harvesting.** What the live APIs actually returned, and which premises above it invalidates. |
 | [`docs/09-scale-invariance.md`](docs/09-scale-invariance.md) | Why no indicator may rest on a raw count, the measured deflators, and an audit of the battery. |
 | [`docs/10-continuous-measurement.md`](docs/10-continuous-measurement.md) | Why no measure may gate a continuous quantity at a cut point, and the continuous lineage measure that replaces T1/T2's distance threshold. |
+| [`docs/11-execution-plan.md`](docs/11-execution-plan.md) | The end-to-end pass: what is computable from the corpus we have, and in what order. |
+| [`docs/12-data-dictionary.md`](docs/12-data-dictionary.md) | **Every column in every output file**, and what each must not be used for. |
 
 ## Status
 

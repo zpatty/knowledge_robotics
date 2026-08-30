@@ -74,6 +74,8 @@ Read in this order; every doc cross-references the others by ID.
 | `docs/08-phase0-findings.md` | **What the live APIs actually returned.** Supersedes `03` §3.3. Read before any harvest work. |
 | `docs/09-scale-invariance.md` | The no-raw-counts constraint, the measured deflators, and an audit of all ~20 indicators against it. |
 | `docs/10-continuous-measurement.md` | The no-arbitrary-thresholds constraint, a threshold audit, and the continuous replacement for `T1`/`T2`. |
+| `docs/11-execution-plan.md` | The end-to-end pass and its operating rules: data over conclusions, simple over clever. |
+| `docs/12-data-dictionary.md` | **Every column in every output file.** Read before using any of them. |
 | `docs/appendix-deferred.md` | The expert survey and the model-in-the-loop probe, with re-entry conditions. |
 
 ## Four hard scope constraints, set by the PI
