@@ -47,6 +47,15 @@ from typing import Iterable, Mapping, Sequence
 Graph = dict[str, dict[str, float]]
 
 
+def degree_buckets(graph: Graph) -> dict[int, list[str]]:
+    """Authors grouped by unweighted degree, for degree-matched null sampling.
+    Built once and shared: rebuilding it per call dominates a panel-wide sweep."""
+    buckets: dict[int, list[str]] = defaultdict(list)
+    for node, nbrs in graph.items():
+        buckets[len(nbrs)].append(node)
+    return buckets
+
+
 def degrees(graph: Graph) -> dict[str, float]:
     """Weighted degree per author. Computed once and threaded through: it touches
     every edge, which dominates runtime if recomputed inside a null sweep."""
@@ -101,12 +110,20 @@ def personalised_pagerank(
     the neighbourhood actually reached — seconds rather than minutes — with a
     provable error bound.
 
-    `epsilon` is a *numerical* tolerance, not a substantive threshold: it bounds
-    the residual per unit degree, so lowering it refines the same estimate rather
-    than reclassifying anyone. It is not a distance cutoff in disguise — every
-    path length still contributes, and no author is placed in or out of a
-    category by it. Work is bounded by 1/(epsilon*alpha), so epsilon trades
-    accuracy against time; 1e-6 keeps a full null sweep to seconds.
+    **`epsilon` is a convergence tolerance that behaves as a distance cutoff when
+    too loose, so it must be verified rather than assumed.** It bounds the
+    residual per unit degree; work is bounded by 1/(epsilon*alpha). Measured on
+    one impedance-control cell the estimate is NOT stable across it:
+
+        epsilon=1e-6   ratio 2.48   15.7s
+        epsilon=1e-5   ratio 3.73    0.9s
+        epsilon=1e-4   ratio 0.00    0.1s
+
+    At 1e-4 the walk is truncated before reaching the adopters at all, which is
+    precisely the gated measurement docs/10 rules out, smuggled in through a
+    performance knob. Do not loosen it for speed without re-checking convergence
+    on the cells being computed. 1e-6 is the loosest value tested that still
+    agrees with a tighter one; `check_convergence` re-tests that on new data.
 
     Pass `degree` to reuse a precomputed degree map. Recomputing it per call
     dominates the runtime when sweeping nulls, since it touches every edge.
@@ -156,6 +173,7 @@ def proximity(
     adopters: Sequence[str],
     *,
     alpha: float = 0.15,
+    epsilon: float = 1e-6,
     degree: Mapping[str, float] | None = None,
 ) -> float:
     """Continuous lineage proximity of an adopting group to the originators.
@@ -163,7 +181,9 @@ def proximity(
     The adopters' share of the personalised-PageRank mass. Continuous in [0, 1];
     no adopter is ever classified as connected or not.
     """
-    rank = personalised_pagerank(graph, originators, alpha=alpha, degree=degree)
+    rank = personalised_pagerank(
+        graph, originators, alpha=alpha, degree=degree, epsilon=epsilon
+    )
     if not rank:
         return 0.0
     origin = set(originators)
@@ -207,6 +227,9 @@ def proximity_vs_null(
     alpha: float = 0.15,
     n_null: int = 50,
     seed: int = 0,
+    epsilon: float = 1e-6,
+    degree: Mapping[str, float] | None = None,
+    degree_buckets: Mapping[int, Sequence[str]] | None = None,
 ) -> dict[str, float]:
     """Observed proximity over its degree-matched expectation.
 
@@ -219,13 +242,18 @@ def proximity_vs_null(
     `z` is reported alongside because the null spread matters: a ratio of 1.4 on
     a tight null and on a wide one are different findings.
     """
-    deg_w = degrees(graph)
-    observed = proximity(graph, originators, adopters, alpha=alpha, degree=deg_w)
+    deg_w = degree if degree is not None else degrees(graph)
+    observed = proximity(
+        graph, originators, adopters, alpha=alpha, degree=deg_w, epsilon=epsilon
+    )
 
     degree_of = {node: len(nbrs) for node, nbrs in graph.items()}
-    buckets: dict[int, list[str]] = defaultdict(list)
-    for node, d in degree_of.items():
-        buckets[d].append(node)
+    if degree_buckets is None:
+        buckets: dict[int, list[str]] = defaultdict(list)
+        for node, d in degree_of.items():
+            buckets[d].append(node)
+    else:
+        buckets = degree_buckets
 
     rng = random.Random(seed)
     draws: list[float] = []
@@ -234,9 +262,10 @@ def proximity_vs_null(
             graph, originators, rng, buckets, degree_of
         )
         if null_seeds:
-            draws.append(
-                proximity(graph, null_seeds, adopters, alpha=alpha, degree=deg_w)
-            )
+            draws.append(proximity(
+                graph, null_seeds, adopters,
+                alpha=alpha, degree=deg_w, epsilon=epsilon,
+            ))
 
     if not draws:
         return {"observed": observed, "expected": 0.0, "ratio": 0.0, "z": 0.0}
@@ -270,4 +299,25 @@ def sweep_alpha(
     return {
         a: proximity_vs_null(graph, originators, adopters, alpha=a, **kwargs)
         for a in alphas
+    }
+
+
+def check_convergence(
+    graph: Graph,
+    originators: Sequence[str],
+    adopters: Sequence[str],
+    *,
+    alpha: float = 0.15,
+    epsilons: Sequence[float] = (1e-5, 1e-6, 1e-7),
+    **kwargs,
+) -> dict[float, float]:
+    """Raw proximity across tolerances - run before trusting a new sweep.
+
+    epsilon is a performance knob that silently becomes a distance cutoff when too
+    loose (see personalised_pagerank). If these values disagree materially, the
+    looser ones are truncating the walk rather than approximating it.
+    """
+    return {
+        eps: proximity(graph, originators, adopters, alpha=alpha, epsilon=eps, **kwargs)
+        for eps in epsilons
     }

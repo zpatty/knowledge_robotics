@@ -83,8 +83,29 @@ protocol is: **report the whole `alpha` curve, never a single value.**
 `sweep_alpha()` exists to make that the path of least resistance. A finding that
 holds at α = 0.05 and dies at α = 0.30 is a finding about α.
 
-`epsilon` in the push algorithm is numerical tolerance, not a threshold —
-lowering it refines the same estimate rather than reclassifying anyone.
+### `epsilon` **is** a threshold, and that was worth finding out
+
+An earlier draft of this document asserted that `epsilon` — the push algorithm's
+residual tolerance — was mere numerical accuracy. Measurement says otherwise. On
+one impedance-control cell:
+
+| `epsilon` | ratio | time |
+|---|---|---|
+| 1e-6 | 2.48 | 15.7 s |
+| 1e-5 | 3.73 | 0.9 s |
+| 1e-4 | 0.00 | 0.1 s |
+
+A loose tolerance stops the walk before it reaches distant adopters, which is
+exactly a distance cutoff — reintroduced through a performance knob rather than
+declared as a modelling choice. It is the same bug as "distance ≤ 2", wearing an
+engineer's clothes instead of a methodologist's, and it would have been invisible
+in any results table.
+
+Two consequences. `epsilon` is fixed at 1e-6, the loosest value that still agrees
+with a tighter one, and `check_convergence()` re-tests that whenever the graph or
+the cohorts change. And, more generally: **a speed optimisation can silently
+become a measurement decision**, so any parameter bounding how far a computation
+reaches needs the same scrutiny as one bounding what counts.
 
 ### Null normalisation makes it scale-free
 

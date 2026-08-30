@@ -17,3 +17,6 @@ venv/
 # Phase 0 probe artifacts (regenerable; raw API responses)
 data/
 cache/
+
+# Curated registry inputs are version-controlled (see registry/)
+!registry/

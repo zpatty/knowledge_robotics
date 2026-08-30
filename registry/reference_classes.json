@@ -1,0 +1,52 @@
+{
+  "_comment": [
+    "Reference classification for B2 (docs/02 section 6): is a cited work inside",
+    "robotics or outside it? Hand-written, checkable by eye, editable without",
+    "touching code.",
+    "Only 29% of Crossref reference entries carry a venue string but 69% carry a",
+    "DOI, so DOI structure is the primary signal and venue text the fallback.",
+    "'ieee_stems' match the alphabetic part of an IEEE DOI suffix: 10.1109/ICRA.2015",
+    "and 10.1109/ICRA40945.2020 both reduce to ICRA. Numeric stems are IEEE",
+    "publication numbers for older journal DOIs (70 = Trans. Robotics & Automation,",
+    "34 = TPAMI, 9 = Trans. Automatic Control).",
+    "Anything unlisted is 'unknown' and is reported as such, never defaulted."
+  ],
+  "ieee_stems": {
+    "robotics": ["ICRA", "IROS", "ROBOT", "IRDS", "TRO", "TRA", "LRA", "MRA", "70",
+                 "HUMANOIDS", "ICHR", "ROMAN", "ROBIO", "TMECH", "CASE", "AIM",
+                 "BIOROB", "SIMPAR", "ARSO", "ICORR", "IVS", "SSRR", "ICAR"],
+    "computer_vision_ml": ["CVPR", "ICCV", "ECCV", "TPAMI", "34", "WACV", "ICIP",
+                           "TIP", "TNNLS", "TCSVT"],
+    "control_theory": ["CDC", "TAC", "9", "ACC", "TCST", "ECC"],
+    "biomedical": ["TBME", "TNSRE", "EMBC"],
+    "physics_engineering": ["TIE", "TPEL", "SENSORS", "JMEMS"]
+  },
+  "registrant_prefixes": {
+    "robotics": ["10.15607"],
+    "general_science": ["10.1038", "10.1126", "10.1073"]
+  },
+  "doi_prefixes": {
+    "robotics": ["10.1177/0278364"]
+  },
+  "venue_markers": {
+    "robotics": ["robot", "iros", "icra", "intelligent robots", "field robotics",
+                 "autonomous robots", "mechatronic", "humanoid", "human-robot",
+                 "conference on robot learning"],
+    "mathematics_statistics": ["siam", "annals of statistics", "linear algebra",
+                               "numerical analysis", "mathematical programming",
+                               "journal of machine learning research", "biometrika"],
+    "control_theory": ["automatica", "automatic control", "control letters",
+                       "control engineering practice", "journal of control", "ifac"],
+    "physics_engineering": ["physical review", "applied physics", "physics of fluids",
+                            "fluid mechanics", "nature materials", "machine theory",
+                            "mechanical design", "smart materials"],
+    "computer_vision_ml": ["cvpr", "iccv", "eccv", "neurips",
+                           "neural information processing", "machine learning",
+                           "pattern analysis and machine intelligence",
+                           "journal of computer vision"],
+    "neuroscience_biology": ["neuroscience", "neural computation",
+                             "experimental biology", "biological cybernetics",
+                             "physiology", "bioinspiration"],
+    "general_science": ["nature", "science", "national academy of sciences"]
+  }
+}
