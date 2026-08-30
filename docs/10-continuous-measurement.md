@@ -45,6 +45,7 @@ worst of them.
 | `B1` ([`02`](02-detection-methods.md) §6) | justification type: derived / bounded / analogical / … | **Keep.** Genuinely categorical — a proof is not a stronger version of an analogy. But record classifier confidence and propagate it rather than hard-assigning. |
 | `05` | "seal a random 20% hold-out" | **Keep.** A protocol decision, not a measurement. |
 | `09` (ours) | `hyper_author_threshold=20` in `corpus_baselines.py` | **Our own violation.** Replaced by reporting the author-count distribution; see §3. |
+| `10` (ours) | the cross-technique probe splits cohorts at 2015 | **Our own violation**, in this document's own demo. The principled form regresses on the continuous time gap; see §2. |
 
 The rule that separates the two columns: **a threshold on a measured quantity is a
 bug; a threshold on a work plan is a budget.** Curation limits, hold-out
@@ -141,6 +142,58 @@ The proximity measure inherits that error; it does not cause it, and the
 degree-matched null absorbs part of it, but the disambiguation sample in
 [`05`](05-validation-and-threats.md) is a precondition for trusting any absolute
 level here. Ratios across techniques within the same graph are safer than levels.)*
+
+### A cross-technique probe, and why it is not yet a finding
+
+Running the same measure over four techniques produces an ordering that lines up
+suspiciously well with the **D1** prediction in [`04`](04-study-design.md) §3 —
+craft-laden techniques high, heavily-codified ones at chance:
+
+| Technique | ratio @ α=0.15 | z | early → late authors |
+|---|---|---|---|
+| Visual servoing | 2.67 | 21.1 | 385 → 374 |
+| Impedance control | 2.13 | 4.3 | 186 → 342 |
+| Model predictive control | 1.19 | 1.4 | 98 → 776 |
+| Reinforcement learning | 1.11 | 1.4 | 167 → 3,179 |
+
+It is tempting to read this as early face validity: impedance control is
+[`04`](04-study-design.md) §5's designated craft-laden case, and MPC and RL are
+the two with mature solvers and enormous public codebases. **Do not report it that
+way.** The right-hand column shows why.
+
+**The two techniques at chance are exactly the two whose adopter population
+exploded** — RL by 19×, MPC by 8× — while the two showing lineage proximity have
+adopter cohorts that are flat or barely doubled. A cohort that grows nineteenfold
+is mostly new entrants, and new entrants are unconnected to anyone, so the mean
+proximity of the cohort regresses toward its null whatever the technique's tacit
+content. The degree-matched null controls for how well-connected the *originators*
+are; it does not control for how fast the *adopter population* grew.
+
+This may still be the signal the transfer channel is after — broad diffusion to
+strangers is what codification is supposed to look like — but it is not separable,
+on this evidence, from the field-wide pivot to learning methods that inflated the
+RL cohort for reasons having nothing to do with codification. That is threat
+**T-G** (attention and scale confounds) in
+[`05`](05-validation-and-threats.md), arriving exactly where it was predicted to.
+
+Three things this probe therefore needs before it means anything:
+
+1. **A growth-matched null**, or the technique's adoption trajectory as an
+   explicit covariate. Comparing techniques with 19× and 1× cohort growth on an
+   unadjusted ratio compares growth rates.
+2. **The technique registry** ([`04`](04-study-design.md) §1). These cohorts are
+   title-substring matches, not curated λ-objects; "reinforcement learning" in a
+   title spans a dozen distinct techniques.
+3. **A continuous treatment of time.** The probe splits cohorts at 2015 — an
+   arbitrary cut point, and so a violation of this document inside its own
+   demonstration. The principled form regresses proximity on the time gap between
+   originating and adopting papers, with no split at all.
+
+Recorded here rather than quietly fixed because it is a good illustration of the
+constraint's value: the measure is continuous and deflated, and it *still*
+produced a plausible, well-ordered, publication-shaped result that is probably an
+artifact of cohort growth. Scale invariance and continuity are necessary, not
+sufficient.
 
 ## 3. Our own violation, fixed
 
