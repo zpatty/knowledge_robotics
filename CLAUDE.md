@@ -73,9 +73,10 @@ Read in this order; every doc cross-references the others by ID.
 | `docs/07-harvest-operations.md` | Operational notes for `src/tacit/` and `scripts/`. |
 | `docs/08-phase0-findings.md` | **What the live APIs actually returned.** Supersedes `03` §3.3. Read before any harvest work. |
 | `docs/09-scale-invariance.md` | The no-raw-counts constraint, the measured deflators, and an audit of all ~20 indicators against it. |
+| `docs/10-continuous-measurement.md` | The no-arbitrary-thresholds constraint, a threshold audit, and the continuous replacement for `T1`/`T2`. |
 | `docs/appendix-deferred.md` | The expert survey and the model-in-the-loop probe, with re-entry conditions. |
 
-## Three hard scope constraints, set by the PI
+## Four hard scope constraints, set by the PI
 
 These are binding design decisions, not preferences. Both are easy to violate by
 reflex, so check any proposed change against them.
@@ -101,6 +102,16 @@ reflex, so check any proposed change against them.
    named (`R4`, `T1`, `T4`, `U2`, `U3`) — see the audit in `09` §3. Co-authorship
    edges must be fractionally weighted (1/(n−1)); unweighted, one 279-author paper
    doubles the 2024 graph.
+4. **No arbitrary classification.** (`10-continuous-measurement.md`.) Where a
+   quantity is continuous, measure it continuously; do not gate it at a cut point.
+   A threshold discards information, creates a researcher degree of freedom
+   (threat `T-I`, self-inflicted), and — on an inflating quantity — *manufactures*
+   a time trend. `T1`/`T2`'s "co-authorship distance ≤ 2" is replaced by continuous
+   lineage proximity in `src/tacit/lineage.py`. Where a decay parameter is
+   unavoidable, **report the sensitivity curve, never a point estimate**. The test
+   that separates a bug from a budget: a threshold on a *measured quantity* is a
+   bug; a threshold on a *work plan* (curation limits, hold-out fractions,
+   annotation sample sizes) is a budget and is fine.
 
 ## Where the corpus actually comes from
 

@@ -314,3 +314,102 @@ class TestCrossrefYear(unittest.TestCase):
         self.assertEqual(work_year({"issued": {"date-parts": [[1995]]}}), 1995)
         self.assertIsNone(work_year({}))
         self.assertIsNone(work_year({"published": {"date-parts": [[]]}}))
+
+
+class TestLineageContinuity(unittest.TestCase):
+    """The properties docs/10 claims: no cut point, distance graded not gated,
+    edge strength carried, consortium papers not allowed to dominate."""
+
+    def setUp(self):
+        from tacit import lineage
+        self.L = lineage
+        # A path: origin - a - b - c, so distance is unambiguous.
+        papers = [
+            {"authors": [{"name": "origin"}, {"name": "a"}]},
+            {"authors": [{"name": "a"}, {"name": "b"}]},
+            {"authors": [{"name": "b"}, {"name": "c"}]},
+        ]
+        self.g = lineage.build_coauthor_graph(papers)
+
+    def test_distance_is_graded_not_gated(self):
+        """The whole point: distance 3 scores lower than 2, but is NOT zero."""
+        rank = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.15)
+        a, b, c = rank.get("a", 0), rank.get("b", 0), rank.get("c", 0)
+        self.assertGreater(a, b)
+        self.assertGreater(b, c)
+        self.assertGreater(c, 0.0, "distance-3 author was gated out, not graded")
+
+    def test_no_author_is_classified(self):
+        """Scores are continuous, not a two-valued membership."""
+        rank = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.15)
+        vals = sorted({round(v, 12) for k, v in rank.items() if k != "origin"})
+        self.assertGreater(len(vals), 1, "proximity collapsed to a class")
+
+    def test_alpha_changes_decay_not_membership(self):
+        """Higher alpha decays faster, but nobody drops out of the measure."""
+        near = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.6)
+        far = self.L.personalised_pagerank(self.g, ["origin"], alpha=0.05)
+        self.assertGreater(far.get("c", 0), near.get("c", 0))
+        self.assertGreater(near.get("c", 0), 0.0)
+
+    def test_repeated_collaboration_strengthens_edge(self):
+        p1 = [{"authors": [{"name": "x"}, {"name": "y"}]}]
+        p3 = p1 * 3
+        self.assertGreater(
+            self.L.build_coauthor_graph(p3)["x"]["y"],
+            self.L.build_coauthor_graph(p1)["x"]["y"],
+        )
+
+    def test_fractional_weighting_damps_consortium_papers(self):
+        """A 50-author paper must not outweigh a genuine pairwise collaboration."""
+        big = [{"authors": [{"name": f"n{i}"} for i in range(50)]}]
+        frac = self.L.build_coauthor_graph(big, fractional=True)
+        raw = self.L.build_coauthor_graph(big, fractional=False)
+        self.assertAlmostEqual(frac["n0"]["n1"], 1 / 49)
+        self.assertAlmostEqual(raw["n0"]["n1"], 1.0)
+        self.assertLess(sum(frac["n0"].values()), sum(raw["n0"].values()))
+
+    def test_proximity_is_a_share_in_unit_interval(self):
+        p = self.L.proximity(self.g, ["origin"], ["a", "b"])
+        self.assertGreater(p, 0.0)
+        self.assertLessEqual(p, 1.0)
+
+    def test_proximity_excludes_originators_from_both_sides(self):
+        """Otherwise a technique looks lineage-bound purely from its own authors."""
+        self.assertEqual(self.L.proximity(self.g, ["origin"], ["origin"]), 0.0)
+
+    def test_unreachable_seed_returns_empty_not_error(self):
+        self.assertEqual(self.L.personalised_pagerank(self.g, ["nobody"]), {})
+        self.assertEqual(self.L.proximity(self.g, ["nobody"], ["a"]), 0.0)
+
+    def test_null_ratio_is_near_one_for_unrelated_adopters(self):
+        """The null must not credit lineage where there is none."""
+        import random
+        rng = random.Random(0)
+        papers = [
+            {"authors": [{"name": f"p{rng.randrange(60)}"},
+                         {"name": f"p{rng.randrange(60)}"}]}
+            for _ in range(400)
+        ]
+        g = self.L.build_coauthor_graph(papers)
+        nodes = sorted(g)
+        res = self.L.proximity_vs_null(
+            g, nodes[:5], nodes[30:40], alpha=0.15, n_null=25, seed=1
+        )
+        self.assertGreater(res["ratio"], 0.3)
+        self.assertLess(res["ratio"], 3.0)
+
+
+class TestCorpusBaselineQuantiles(unittest.TestCase):
+    def test_quantile_reports_shape_without_a_cut_point(self):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "cb", Path(__file__).resolve().parents[1] / "scripts" / "corpus_baselines.py"
+        )
+        cb = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cb)
+        vals = list(range(1, 101))
+        self.assertEqual(cb.quantile(vals, 0.50), 50)
+        self.assertEqual(cb.quantile(vals, 0.99), 99)
+        self.assertEqual(cb.quantile([], 0.5), 0.0)
+        self.assertEqual(cb.quantile([7], 0.9), 7)
