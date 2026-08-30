@@ -20,8 +20,11 @@ The design (channels, indicators, hypotheses, validation) is untouched; where La
 A/A′ come from is not. **Read `docs/08-phase0-findings.md` before touching anything
 corpus-related** — it supersedes `03` §3.3. The one-line version: IEEE is 403ing
 regardless of key, OpenAlex has <10% of the venue linkage and is now metered, and
-Crossref carries a usable corpus from ~2007 with ~99% reference edges. A Crossref
-harvest of 2006–2025 is the working corpus.
+Crossref carries a usable corpus from ~2007. **The working corpus exists**:
+40,293 ICRA/IROS papers (2006–2025) with 981,672 reference edges, 74% DOI-resolved,
+in `data/crossref_works.jsonl` (gitignored — regenerate with
+`scripts/harvest_crossref.py`). Two gaps to respect: **no ORCID** (30 papers in
+40k, so author disambiguation has no anchor) and **no affiliations before 2019**.
 
 ## Branch topology — read this before assuming what is in the tree
 

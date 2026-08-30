@@ -9,7 +9,7 @@ Everything below is measured, not inferred. Raw responses are in `data/`.
 
 ---
 
-## F1 — The IEEE account is inactive, not merely unapproved
+## F1 — IEEE returns 403 regardless of key
 
 ```
 HTTP/2 403
@@ -124,7 +124,7 @@ pointing elsewhere). This distinction decides whether OpenAlex is salvageable, a
 the single most important open question. It could not be tested — the daily credit
 allowance was exhausted mid-investigation.
 
-## F4 — Crossref reaches back only to ~2008, and it is a hard edge
+## F4 — Crossref reaches back only to ~2007, and it is a hard edge
 
 Crossref was probed as the alternative: free, unmetered, already allowlisted. It
 carries what the plan needs — container title, article title, DOI, year, authors,
@@ -154,9 +154,12 @@ Two edges, and they sit in different places:
 - **Reference edges: ~99% throughout the covered years.** Layer A′ is in excellent
   shape wherever Layer A exists, which is the single most encouraging result of
   the probe — the transfer channel (T1–T4) and B2 run on exactly this.
-- **Affiliations: a cliff at 2022.** Before it, 7–46 papers per year carry any
-  affiliation at all; from 2022, 98%. This is not a rounding issue, it is a
-  step change in what IEEE deposits.
+- **Affiliations: a ramp from 2019, not a clean cliff.** Sparse sampling
+  suggested a step at 2022; the full harvest shows 0–3% through 2018, then 44%
+  (2019), 12% (2020), 22% (2021), and 98–99% from 2022. The 2019 spike and the
+  2020 fallback mean this is inconsistent deposit practice rather than a policy
+  date, so any affiliation-based measure must be conditioned on year and
+  cannot assume a single changepoint.
 
 That last point bites specific indicators. **T4** (personnel-flow-mediated
 diffusion) and **H3** (institutional and geographic decentralisation) are built on
@@ -247,6 +250,53 @@ what Crossref can still support.
 
 Nothing in the *design* is invalidated. The channels, indicators, hypotheses and
 validation plan are untouched. What changed is where Layers A and A′ come from.
+
+## F5 — The harvested corpus, validated
+
+`scripts/harvest_crossref.py` over 2006–2025 produced **40,293 papers**, every one
+with a distinct DOI. This is the working corpus.
+
+| | |
+|---|---|
+| Papers | 40,293 (ICRA 19,291 · IROS 21,002) |
+| Reference edges | **981,672**, of which 723,819 (74%) DOI-resolved |
+| Papers with ≥1 reference | 39,206 (97%) |
+| Distinct author names | 68,576 |
+| Papers with any affiliation | 13,248 (33%, almost all post-2019) |
+| Papers with any ORCID | **30** |
+
+Four things in that table change how the study should be built.
+
+**Layer A′ is strong — stronger than the early spot check suggested.** 74% of
+reference entries carry a DOI, not the 47% measured on a single 2002 paper. Nearly
+a million resolvable citation edges is a real graph, and T1/T2/T3 and B2 run on it
+directly. The remaining 26% are unstructured strings that need matching before they
+can be used; that bounds recall rather than blocking anything.
+
+**ORCID is effectively absent.** Thirty papers out of forty thousand. The plan's
+author-disambiguation strategy ([`03`](03-corpus.md) §3.5) puts ORCID first and an
+ensemble second; in practice there is no ORCID layer at all, so disambiguation rests
+entirely on name + affiliation + co-author + topic signals — and affiliation is
+itself missing before 2019. This makes **T-H** (disambiguation error, worse for
+non-Western names) materially more severe than
+[`05`](05-validation-and-threats.md) assumed, and the hand-checked sample it calls
+for is now mandatory rather than good practice. The ORCID-only robustness check
+proposed there is not available.
+
+**References per paper more than double across the window** — 14.6 (2006) to 33.9
+(2025), rising steadily. B2 is specified as a *fraction* of citations that reach
+outside robotics, so it is partly insulated, but a doubling of the denominator over
+the same period as the outcome is a structural trend that has to be modelled
+explicitly, not assumed away. It also interacts with **T-A** (writing-convention
+drift): reference-list growth is exactly the kind of venue-norm change that
+masquerades as a knowledge trend.
+
+**Two year-level anomalies** need a look before the panel is used:
+- **2011: 2,521 papers but only 71% carry references**, against 97–100% in every
+  neighbouring year. Both numbers are out of line.
+- **2006: ICRA returns 29 papers** against IROS's 1,019. ICRA 2006 is essentially
+  missing, so 2006 should be treated as IROS-only or dropped.
+
 
 ### Standing options (PI, 2026-08-30)
 
