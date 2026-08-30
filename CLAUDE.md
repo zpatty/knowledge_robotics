@@ -124,7 +124,7 @@ with the live APIs. Current state, per `docs/08`:
 |---|---|---|
 | **Crossref** | free, unmetered, no key | **The working corpus.** ~2007–present, ~99% reference edges. Affiliations only from 2022. |
 | **OpenAlex** | metered (1,000 credits/day free); supplied key is rejected, keyless polite pool works | Under 10% venue linkage — IROS resolves to 3 years. Not usable until F3 in `08` is settled. |
-| **IEEE Xplore** | `ERR_403_DEVELOPER_INACTIVE` for *any* key, including none | Blocked. Only route to 1984–2006 and to abstracts. |
+| **IEEE Xplore** | 403 before authentication — identical for a real key, a malformed key, and no key at all | Blocked *from cloud IPs*; the key is probably fine. Only route to 1984–2006 and to abstracts. See `08` F1. |
 
 `src/tacit/crossref.py` documents three silent Crossref traps — read it before
 writing a query. The worst: **cursor paging discards relevance ordering**, so paging
@@ -214,7 +214,10 @@ Do not re-litigate these; assume they are available when weighing a route.
 Nothing in `src/` or `scripts/` has been run against a live API. Treat every corpus
 count in the docs as an estimate. Specifically open:
 
-- Whether the current IEEE key is active at all — its granted status reads *waiting*.
+- Whether the IEEE key works from a non-datacenter network. It is refused here
+  before authentication runs, from two different cloud IPs, so the block is
+  almost certainly the origin rather than the credential (`08` F1). One curl from
+  a campus connection settles it.
 - Which fields IEEE returns per era — abstracts, affiliations, index terms, and
   especially supplementary-material flags, which `S1` leans on heavily.
 - OpenAlex abstract coverage before ~2000. **This is the Phase 0 gate**: the

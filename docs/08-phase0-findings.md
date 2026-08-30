@@ -9,7 +9,7 @@ Everything below is measured, not inferred. Raw responses are in `data/`.
 
 ---
 
-## F1 — IEEE returns 403 regardless of key
+## F1 — IEEE blocks this caller before authentication (not an account problem)
 
 ```
 HTTP/2 403
@@ -18,39 +18,74 @@ x-error-detail-header: Account Inactive
 server: Mashery Proxy
 ```
 
-**The response does not depend on the key at all.** A valid-looking key, a garbage
-key, an empty key, and no key parameter whatsoever all return the identical
-`ERR_403_DEVELOPER_INACTIVE`. The gateway is reachable and does discriminate — a
-bogus *path* returns `ERR_596_SERVICE_NOT_FOUND` — but on the real path it never
-evaluates the credential.
+**Revised 2026-08-30, second pass.** The first reading of this was "the developer
+account is inactive". The evidence does not support it, and the corrected
+diagnosis matters because it changes who has to do something.
 
-That rules out the obvious readings. It is **not** evidence that the key is wrong,
-mistyped, or expired, and a missing key would normally produce a *different*
-Mashery error. What remains: the `search/articles` service is refusing this caller
-before authentication, which most plausibly means the developer account or its
-application is inactive at IEEE's end, or the key is IP-restricted and these
-requests originate from a cloud VM rather than a registered network.
+### The gateway never evaluates the key
 
-**The cheap test that separates those:** run the same request from the machine or
-campus network the key was registered from.
+Every key shape returns a byte-identical response:
+
+| Request | Result |
+|---|---|
+| The real 24-char key | `ERR_403_DEVELOPER_INACTIVE` |
+| A wrong 24-char key | `ERR_403_DEVELOPER_INACTIVE` |
+| A 3-character key | `ERR_403_DEVELOPER_INACTIVE` |
+| An 80-character key | `ERR_403_DEVELOPER_INACTIVE` |
+| Special characters | `ERR_403_DEVELOPER_INACTIVE` |
+| `apikey=` (empty) | `ERR_403_DEVELOPER_INACTIVE` |
+| **No `apikey` parameter at all** | `ERR_403_DEVELOPER_INACTIVE` |
+
+A Mashery gateway that were checking credentials would distinguish *missing* from
+*malformed* from *unknown* from *inactive* — those are separate error codes in the
+product. Returning one code for all seven cases means the request is refused
+**before authentication runs**.
+
+Meanwhile routing works: `/api/v1/` and the gateway root return
+`ERR_596_SERVICE_NOT_FOUND`, and both `search/articles` and
+`search/document/{n}/fulltext` resolve to real services. So the gateway knows the
+path and rejects the caller, not the credential.
+
+### The caller is a datacenter IP, twice over
+
+The same 403 arrives over two independent network paths with different source
+addresses:
+
+| Path | Egress IP | Owner |
+|---|---|---|
+| HTTPS via the session proxy | `160.79.106.128` | Anthropic |
+| Plain HTTP, proxy bypassed | `34.122.140.224` | Google Cloud |
+
+Both are cloud ranges. Publishers routinely block datacenter address space ahead
+of authentication to stop bulk scraping, and that hypothesis fits every
+observation here: key-independent, path-sensitive, reproducible from two
+unrelated cloud IPs.
+
+**So the most likely reading is that the key is fine and the origin is the
+problem.** "Account Inactive" is Mashery's generic pre-auth refusal string, not a
+statement about this account.
+
+### The test that settles it
+
+Run the exact request from the network the key was registered on — a campus or
+home connection, not a VM or VPN:
 
 ```bash
 curl -sS -D - -o /dev/null \
-  "https://ieeexploreapi.ieee.org/api/v1/search/articles?max_records=1&format=json&apikey=YOUR_KEY"
+  "https://ieeexploreapi.ieee.org/api/v1/search/articles?querytext=robot&max_records=1&apikey=YOUR_KEY"
 ```
 
-If it succeeds there, the problem is network origin, not the account, and the fix
-is to harvest from that machine (which [`07`](07-harvest-operations.md) recommends
-anyway) or to have the key's IP restriction lifted. If it returns the same
-`ERR_403_DEVELOPER_INACTIVE`, the account needs activating with IEEE support.
+- **200 with JSON** — the key works and the block is our cloud origin. Harvest
+  from that machine; nothing needs to be asked of IEEE. This is what
+  [`07`](07-harvest-operations.md) already recommends for other reasons.
+- **The same `ERR_403_DEVELOPER_INACTIVE`** — then it is account-side after all,
+  and IEEE support is the route. Quote the error code and the fact that it
+  reproduces with no key present.
 
-**Blocked by this:** the field-availability probe (Phase 0 item 3), the venue-year
-completeness audit (item 5), abstract gap-filling, controlled index terms, and the
-supplementary/multimedia flags that `S1` was to lean on. It is a human action and
-nothing in the codebase routes around it.
-
-`AccountInactive` is now a distinct exception type, so the next person to hit this reads
-the cause instead of a bare `403 Forbidden`.
+If it works there, the pre-2007 corpus and the abstract layer are both
+recoverable without any negotiation — which would change the project's
+sequencing considerably, since they are the two things currently blocking
+H5a/H5b and the entire linguistic channel.
 
 ## F2 — OpenAlex is metered now, and the free tier is small
 
