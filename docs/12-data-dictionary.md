@@ -96,14 +96,25 @@ prior authors of that technique, with no cohort split (`10` §2).
 | `n_null` | Null draws. `0` marks a cell recorded as too small to compute — kept in the file rather than dropped, so the skip is visible. |
 | `seconds` | Wall time. Diagnostic. |
 
-**The standing caution.** This column is **not** a tacitness ranking. Note the
-cohort-growth confound predicted in `10` §2 is measured at Spearman +0.081 over
-the 688 computed cells and is therefore negligible *in this rolling design* — the
-warning applied to the 2015-split probe, not to the panel. What remains open is
-whether growth matters within a single technique's trajectory, and, more
-importantly, that nothing yet connects this ratio to the construct: it measures
-network proximity, and calling that tacit transmission is an inference the data
-does not yet support.
+**The standing caution.** This column is **not** a tacitness ranking. Two facts
+about it, both measured on the exact solver:
+
+- The cohort-growth confound predicted in `10` §2 does not appear in this rolling
+  design: Spearman(growth, ratio) = **+0.138**, Spearman(prior cohort size,
+  ratio) = **−0.160** over 688 cells. Weak, and the growth term carries the
+  opposite sign to the predicted confound.
+- Nothing yet connects this ratio to the construct. It measures network
+  proximity. Calling that tacit transmission is an inference the data does not
+  support, and no validation in `05` has been run against it.
+
+Panel-wide, median ratio **1.38** (IQR 0.90–2.41), 68% of cells above 1.0, median
+z 1.52 with 43% above z = 2. So lineage proximity above chance is common but far
+from universal, and on the median cell it is modest.
+
+**`data/indicator_lineage_PUSH_INVALID.csv`** holds the retired approximate-push
+panel. It is kept for comparison, not use: every level in it is wrong (median
+relative error 80%, zero cells within 10%), though rank order survives at
+Spearman +0.974. `scripts/compare_solvers.py` reproduces that comparison.
 
 ## `data/corpus_baselines.json` — deflators
 
