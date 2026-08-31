@@ -110,12 +110,27 @@ RUNAWAY_GUARD = 100_000
 # missing whichever qualifier appears next.
 # Genuine containers vary only in year prefix, the "IEEE"/"IEEE/RSJ" tags, a
 # trailing "(ICRA)"/"(IROS)", and 2006's "Proceedings ... , 2006. ICRA 2006."
-_TAIL = r"(?=\s*(?:\(|,|\.|;|$))"
+# What may follow the venue phrase: punctuation, a parenthesised acronym, an
+# apostrophe-year ("... and Systems '91"), a colon, or end of string. Stated as
+# a positive list because the blocklist version missed ICRAE on the first try.
+_TAIL = r"(?=\s*(?:\(|,|\.|;|:|'|$))"
 
 VENUE_PATTERNS = {
+    # IROS's title moves around more than any other part of this corpus. Four
+    # real variants, each of which silently dropped a whole year until the
+    # rejected container titles were read:
+    #   1988  "IEEE International Workshop on Intelligent Robots"  (no "and Systems")
+    #   1991  "... Workshop on Intelligent Robots and Systems '91"  (apostrophe tail)
+    #   1997  "... Conference on Intelligent Robot and Systems"     (singular Robot)
+    #   2002  "... Conference on Intelligent Robots and System"     (singular System)
+    # Hence: both nouns optionally singular, the whole "and Systems" clause
+    # optional, and an apostrophe admitted by the tail. The tail rule is what
+    # keeps all that looseness from admitting other venues - "Intelligent
+    # Robotics and Applications" (ICIRA) still fails, because what follows
+    # "Robot" there is a letter rather than punctuation.
     "IROS": re.compile(
-        r"international (?:conference|workshop) on intelligent robots and systems"
-        + _TAIL,
+        r"international (?:conference|workshop) on intelligent robots?"
+        r"(?: and systems?)?" + _TAIL,
         re.I,
     ),
     "ICRA": re.compile(

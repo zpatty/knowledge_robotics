@@ -593,3 +593,44 @@ class TestDoiYear(unittest.TestCase):
         self.assertEqual(work_year({"DOI": "10.1109/robot.1990.126006"}), 1990)
         self.assertEqual(work_year({"DOI": "10.1109/robot.1990.126006",
                                     "published": {"date-parts": [[1991]]}}), 1991)
+
+
+class TestIrosTitleVariants(unittest.TestCase):
+    """IEEE's proceedings titles are not consistent across forty years. Each
+    string here is real and was silently dropped by an earlier pattern."""
+
+    def setUp(self):
+        from tacit.crossref import classify_container
+        self.c = classify_container
+
+    def test_singular_robot_1997_variant(self):
+        self.assertEqual(self.c(
+            "Proceedings of the 1997 IEEE/RSJ International Conference on "
+            "Intelligent Robot and Systems. Innovative Robotics for Real-World "
+            "Applications. IROS '97"), "IROS")
+
+    def test_singular_system_2002_variant(self):
+        self.assertEqual(self.c(
+            "IEEE/RSJ International Conference on Intelligent Robots and System"), "IROS")
+
+    def test_plural_form_still_matches(self):
+        self.assertEqual(self.c(
+            "2015 IEEE/RSJ International Conference on Intelligent Robots and "
+            "Systems (IROS)"), "IROS")
+
+    def test_1991_workshop_apostrophe_year_variant(self):
+        self.assertEqual(self.c(
+            "Proceedings IROS '91:IEEE/RSJ International Workshop on Intelligent "
+            "Robots and Systems '91"), "IROS")
+
+    def test_1988_original_name_without_and_systems(self):
+        self.assertEqual(self.c(
+            "IEEE International Workshop on Intelligent Robots"), "IROS")
+
+    def test_loosened_nouns_do_not_admit_other_venues(self):
+        """The tail rule is what carries this: what follows must be punctuation."""
+        for s in ["2018 International Conference on Intelligent Robotics and Applications",
+                  "2019 International Conference on Intelligent Robots and Smart Manufacturing",
+                  "IEEE Transactions on Intelligent Robots and Systems",
+                  "2018 International Conference on Intelligent Robot Systems and Automation Engineering"]:
+            self.assertIsNone(self.c(s), s)

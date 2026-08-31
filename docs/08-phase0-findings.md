@@ -345,10 +345,14 @@ IEEE conference DOIs carry venue and year in the suffix
 them returned **5,859 papers spanning 1984–2005 continuously**, with 83,898
 reference edges and 8,324 distinct authors.
 
-| | 1984 | 1990 | 1995 | 2000 | 2005 |
-|---|---|---|---|---|---|
-| ICRA | 15 | 93 | 139 | 298 | 483 |
-| IROS | — | 25 | 85 | 107 | 375 |
+| | 1984 | 1988 | 1990 | 1995 | 2000 | 2005 |
+|---|---|---|---|---|---|---|
+| ICRA | 15 | 84 | 93 | 139 | 298 | 483 |
+| IROS | — | 8 | 25 | 85 | 107 | 375 |
+
+Combined with the 2006–2025 census the corpus is now **46,049 papers across
+1984–2025** (ICRA 22,918, IROS 23,131) with **1,061,834 reference edges** and
+74,108 distinct authors — in two selections that must not be pooled for rates.
 
 **It is a cited subset, never a census, and that is load-bearing rather than a
 caveat.** Only papers someone later cited are reachable, so it over-represents
@@ -360,9 +364,30 @@ only be traced through cited work anyway, and for comparisons within the same
 selection. Records carry `selection: "cited-subset"` so the distinction reaches
 the panel.
 
-Known holes to respect: IROS is absent for 1997 and near-absent for 2002 (4
-papers), which is a deposit or DOI-stem artifact rather than a citation pattern
-and should be checked before any IROS series crosses those years.
+The first run recovered 5,859 of the 6,210 and showed IROS absent for 1997 and
+near-absent for 2002. That looked like a citation pattern. It was a string bug,
+and reading the *rejected* container titles was the only way to see it: **IROS's
+proceedings title varies more than any other part of this corpus.**
+
+| Year | Container title | What broke |
+|---|---|---|
+| 1988 | IEEE International Workshop on Intelligent Robots | no "and Systems" at all |
+| 1991 | … Intelligent Robots and Systems **'91** | apostrophe, not punctuation |
+| 1997 | … Intelligent **Robot** and Systems | singular noun |
+| 2002 | … Intelligent Robots and **System** | the other singular noun |
+
+With both nouns optionally singular, the "and Systems" clause optional, and an
+apostrophe admitted by the tail rule, **all 6,210 DOIs classify and none is
+off-venue.** IROS now runs continuously from 1988, its first year, and 2002 goes
+from 4 papers to 223. The 2006–2025 corpus re-classifies with zero mismatches, so
+the looser pattern costs no precision — the tail rule carries that, and
+"Intelligent Robotics and Applications" (ICIRA) still fails because what follows
+the noun there is a letter rather than punctuation.
+
+The general lesson, which [`07`](07-harvest-operations.md) predicted and this
+confirms at four times the expected severity: **a venue-title pattern that
+silently returns zero for a year looks exactly like a real absence.** The only
+defence is to read what was rejected, not just what was kept.
 
 ### A second bug the era exposed
 
